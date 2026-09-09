@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Join a class — Nudge{% endblock %}
+{% block content %}
+<div class="form-card card">
+  <h1>Join a class</h1>
+  <p class="muted">Enter the join code your teacher gave you.</p>
+  <form method="post" action="/classes/join">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Join code<input type="text" name="code" required maxlength="12" placeholder="e.g. K7QP2M" class="code-input"></label>
+    <button class="btn primary" type="submit">Join</button>
+  </form>
+</div>
+{% endblock %}

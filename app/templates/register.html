@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Create account — Nudge{% endblock %}
+{% block content %}
+<div class="auth-card card">
+  <h1>Create your account</h1>
+  {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/register">
+    <label>Your name<input type="text" name="name" required maxlength="120" value="{{ form.name or '' }}"></label>
+    <label>Email<input type="email" name="email" required value="{{ form.email or '' }}"></label>
+    <label>Password <span class="hint">(at least 8 characters)</span><input type="password" name="password" required minlength="8"></label>
+    <fieldset class="role-pick">
+      <legend>I am a…</legend>
+      <label class="role-opt"><input type="radio" name="role" value="student" {% if form.role != 'teacher' %}checked{% endif %}><span>🎓 Student</span></label>
+      <label class="role-opt"><input type="radio" name="role" value="teacher" {% if form.role == 'teacher' %}checked{% endif %}><span>🧑‍🏫 Teacher</span></label>
+    </fieldset>
+    <label>Teacher invite code <span class="hint">(only needed for teacher accounts)</span>
+      <input type="text" name="teacher_code" value="{{ form.teacher_code or '' }}" placeholder="From your school or admin">
+    </label>
+    <button class="btn primary block" type="submit">Create account</button>
+  </form>
+  <p class="auth-alt">Already have an account? <a href="/login">Log in</a></p>
+</div>
+{% endblock %}

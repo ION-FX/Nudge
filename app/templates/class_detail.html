@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ klass.name }} — Nudge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ klass.name }}</h1>
+    <p class="muted">{% if klass.description %}{{ klass.description }} · {% endif %}Taught by {{ teacher.name }}</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn accent" href="/classes/{{ klass.id }}/tutor">✦ Ask Nudge</a>
+    {% if is_teacher %}
+      <a class="btn ghost" href="/classes/{{ klass.id }}/materials/new">+ Material</a>
+      <a class="btn primary" href="/classes/{{ klass.id }}/assignments/new">+ Assignment</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if is_teacher %}
+<div class="card subtle join-code-card">
+  <span class="muted">Join code — share with your students:</span>
+  <code class="code-big">{{ klass.join_code }}</code>
+</div>
+{% endif %}
+
+<h2 class="section">Assignments</h2>
+{% if assignment_rows %}
+<div class="card table-card">
+  <table class="list-table">
+    <thead><tr><th>Title</th><th>Due</th><th>Points</th>{% if is_teacher %}<th>Submissions</th>{% else %}<th>Your status</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for a, count, sub in assignment_rows %}
+      <tr>
+        <td><a href="/assignments/{{ a.id }}">{{ a.title }}</a></td>
+        <td>{% if a.due_at and a.due_at < now %}<span class="muted">{{ a.due_at|duefmt }} (past)</span>{% else %}{{ a.due_at|duefmt }}{% endif %}</td>
+        <td>{{ a.points if a.points is not none else "—" }}</td>
+        {% if is_teacher %}
+          <td>{{ count }}{% if roster_count %} <span class="muted">of {{ roster_count }}</span>{% endif %}</td>
+        {% else %}
+          <td>{% if sub and sub.grade is not none %}<span class="chip ok">Graded: {{ sub.grade }}{% if a.points %}/{{ a.points }}{% endif %}</span>{% elif sub %}<span class="chip">Submitted{% if sub.late %} · late{% endif %}</span>{% else %}<span class="chip warn">Not submitted</span>{% endif %}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">No assignments yet.</div>
+{% endif %}
+
+<h2 class="section">Materials</h2>
+{% if materials %}
+<div class="grid">
+  {% for m in materials %}
+  <a class="card class-card" href="/materials/{{ m.id }}">
+    <h3>{{ m.title }}</h3>
+    {% if m.description %}<p class="muted">{{ m.description|truncate(80) }}</p>{% endif %}
+    <div class="chip-row">
+      {% if m.text_content %}<span class="chip accent-chip">✦ Nudge can read this</span>{% endif %}
+      {% if m.original_name %}<span class="chip">{{ m.ext|upper|trim('.') }} · {{ m.size_bytes|filesize }}</span>{% else %}<span class="chip">pasted text</span>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">No materials yet.</div>
+{% endif %}
+
+{% if is_teacher %}
+<h2 class="section">Roster ({{ roster|length }})</h2>
+{% if roster %}
+<div class="card table-card">
+  <table class="list-table">
+    <thead><tr><th>Student</th><th>Email</th><th>Joined</th></tr></thead>
+    <tbody>
+    {% for enrollment, student in roster %}
+      <tr><td>{{ student.name }}</td><td class="muted">{{ student.email }}</td><td>{{ enrollment.created_at|dtfmt }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">No students yet — share the join code <code>{{ klass.join_code }}</code> with your class.</div>
+{% endif %}
+{% endif %}
+{% endblock %}

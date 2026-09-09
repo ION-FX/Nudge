@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Log in — Nudge{% endblock %}
+{% block content %}
+<div class="auth-card card">
+  <h1>Welcome back</h1>
+  {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/login">
+    <label>Email<input type="email" name="email" required value="{{ email or '' }}"></label>
+    <label>Password<input type="password" name="password" required></label>
+    <button class="btn primary block" type="submit">Log in</button>
+  </form>
+  <p class="auth-alt">New here? <a href="/register">Create an account</a></p>
+</div>
+{% endblock %}

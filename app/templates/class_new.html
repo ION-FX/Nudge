@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}New class — Nudge{% endblock %}
+{% block content %}
+<div class="form-card card">
+  <h1>Create a class</h1>
+  {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/classes/new">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Class name<input type="text" name="name" required maxlength="160" placeholder="e.g. Intro to Python"></label>
+    <label>Description <span class="hint">(optional)</span><textarea name="description" rows="3" placeholder="What's this class about?"></textarea></label>
+    <button class="btn primary" type="submit">Create class</button>
+  </form>
+</div>
+{% endblock %}

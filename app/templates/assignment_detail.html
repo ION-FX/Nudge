@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ assignment.title }} — Nudge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ assignment.title }}</h1>
+    <p class="muted">
+      <a href="/classes/{{ klass.id }}">{{ klass.name }}</a>
+      · Due {{ assignment.due_at|dtfmt }}{% if assignment.due_at and assignment.due_at < now %} <span class="chip warn">past due</span>{% endif %}
+      {% if assignment.points is not none %}· {{ assignment.points }} points{% endif %}
+    </p>
+  </div>
+  <div class="head-actions">
+    <a class="btn accent" href="/assignments/{{ assignment.id }}/tutor">✦ Ask Nudge</a>
+  </div>
+</div>
+
+<div class="card">
+  <h3 class="section-sm">Instructions</h3>
+  <pre class="instructions">{{ assignment.instructions or "(no instructions)" }}</pre>
+</div>
+
+{% if is_teacher %}
+  <h2 class="section">Submissions ({{ submissions|length }}{% if student_count %} of {{ student_count }} students{% endif %})</h2>
+  {% for sub, student in submissions %}
+  <div class="card sub-card">
+    <div class="sub-head">
+      <strong>{{ student.name }}</strong>
+      <span class="muted">{{ sub.submitted_at|dtfmt }}</span>
+      {% if sub.late %}<span class="chip warn">late</span>{% endif %}
+      {% if sub.grade is not none %}<span class="chip ok">Graded: {{ sub.grade }}{% if assignment.points %}/{{ assignment.points }}{% endif %}</span>{% endif %}
+      {% if sub.original_name %}<a class="chip" href="/submissions/{{ sub.id }}/file">📎 {{ sub.original_name }}</a>{% endif %}
+    </div>
+    {% if sub.text %}<pre class="sub-text">{{ sub.text }}</pre>{% endif %}
+    <form method="post" action="/submissions/{{ sub.id }}/grade" class="grade-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="field-row">
+        <label>Grade{% if assignment.points %} <span class="hint">/ {{ assignment.points }}</span>{% endif %}
+          <input type="number" name="grade" min="0" {% if assignment.points %}max="{{ assignment.points }}"{% endif %} value="{{ sub.grade if sub.grade is not none else '' }}" placeholder="—">
+        </label>
+        <label>Feedback
+          <textarea name="feedback" rows="2" placeholder="Encouraging feedback works wonders…">{{ sub.feedback }}</textarea>
+        </label>
+      </div>
+      <button class="btn primary sm" type="submit">Save grade</button>
+    </form>
+  </div>
+  {% else %}
+  <div class="empty">No submissions yet.</div>
+  {% endfor %}
+{% else %}
+  <h2 class="section">Your submission</h2>
+  {% if my_sub %}
+  <div class="card sub-card">
+    <div class="sub-head">
+      <span class="muted">Submitted {{ my_sub.submitted_at|dtfmt }}</span>
+      {% if my_sub.late %}<span class="chip warn">late</span>{% endif %}
+      {% if my_sub.original_name %}<a class="chip" href="/submissions/{{ my_sub.id }}/file">📎 {{ my_sub.original_name }}</a>{% endif %}
+    </div>
+    {% if my_sub.text %}<pre class="sub-text">{{ my_sub.text }}</pre>{% endif %}
+    {% if my_sub.grade is not none %}
+    <div class="grade-box">
+      <strong>Grade: {{ my_sub.grade }}{% if assignment.points %}/{{ assignment.points }}{% endif %}</strong>
+      {% if my_sub.feedback %}<p>{{ my_sub.feedback }}</p>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="empty">You haven't submitted yet. Stuck on something? <a href="/assignments/{{ assignment.id }}/tutor">Ask Nudge</a> for a hint.</div>
+  {% endif %}
+
+  <div class="form-card card">
+    <h3 class="section-sm">{{ 'Resubmit your work' if my_sub else 'Submit your work' }}</h3>
+    <form method="post" action="/assignments/{{ assignment.id }}/submit" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label>Your answer<textarea name="text" rows="6" placeholder="Paste your answer, code, or write-up…">{{ my_sub.text if my_sub else '' }}</textarea></label>
+      <label>Attach a file <span class="hint">(optional)</span><input type="file" name="file"></label>
+      {% if my_sub %}<p class="hint">Resubmitting replaces your previous submission and clears its grade.</p>{% endif %}
+      <button class="btn primary" type="submit">{{ 'Resubmit' if my_sub else 'Submit' }}</button>
+    </form>
+  </div>
+{% endif %}
+{% endblock %}

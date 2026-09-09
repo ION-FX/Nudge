@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}New assignment — Nudge{% endblock %}
+{% block content %}
+<div class="form-card card">
+  <h1>New assignment</h1>
+  <p class="muted">For <a href="/classes/{{ klass.id }}">{{ klass.name }}</a></p>
+  {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/classes/{{ klass.id }}/assignments/new">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Title<input type="text" name="title" required maxlength="200" placeholder="e.g. Loop Practice"></label>
+    <label>Instructions <span class="hint">(Nudge will tutor students through this — without solving it for them)</span>
+      <textarea name="instructions" rows="8" placeholder="What should students do? Include the task, expectations, and any hints you want them to start with."></textarea>
+    </label>
+    <div class="field-row">
+      <label>Due <span class="hint">(optional)</span><input type="datetime-local" name="due_at"></label>
+      <label>Points <span class="hint">(optional)</span><input type="number" name="points" min="0" step="1" placeholder="10"></label>
+    </div>
+    <button class="btn primary" type="submit">Post assignment</button>
+  </form>
+</div>
+{% endblock %}

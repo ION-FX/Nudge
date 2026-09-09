@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ material.title }} — Nudge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ material.title }}</h1>
+    <p class="muted">
+      <a href="/classes/{{ klass.id }}">{{ klass.name }}</a>
+      {% if material.description %} · {{ material.description }}{% endif %}
+      · {{ material.created_at|dtfmt }}
+    </p>
+  </div>
+  <div class="head-actions">
+    <a class="btn accent" href="/materials/{{ material.id }}/tutor">✦ Ask Nudge</a>
+    {% if material.stored_name %}<a class="btn ghost" href="/materials/{{ material.id }}/file">⬇ Download</a>{% endif %}
+    {% if is_teacher %}
+    <form method="post" action="/materials/{{ material.id }}/delete" class="inline-form" onsubmit="return confirm('Delete this material?')">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn danger sm" type="submit">Delete</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="chip-row">
+    {% if material.text_content %}
+      <span class="chip accent-chip">✦ Nudge can read this material</span>
+    {% else %}
+      <span class="chip warn">No readable text — Nudge can't tutor from this file</span>
+    {% endif %}
+    {% if material.original_name %}
+      <span class="chip">{{ material.original_name }} · {{ material.size_bytes|filesize }}</span>
+    {% else %}
+      <span class="chip">pasted text</span>
+    {% endif %}
+  </div>
+  {% if material.text_content %}
+    <h3 class="section-sm">Text preview{% if material.text_content|length > preview|length %} (first {{ preview|length }} characters){% endif %}</h3>
+    <pre class="preview">{{ preview }}</pre>
+  {% endif %}
+</div>
+{% endblock %}

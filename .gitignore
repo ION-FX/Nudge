@@ -1,0 +1,16 @@
+# Secrets & local config — never commit the real .env
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Runtime data (database + uploaded files)
+uploads/
+data/
+
+# Misc
+.DS_Store

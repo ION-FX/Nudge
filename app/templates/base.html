@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf" content="{{ csrf }}">
+  <title>{% block title %}Nudge{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✦</text></svg>">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body {% block bodyattrs %}{% endblock %}>
+{% if user %}
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/dashboard"><span class="brand-mark">✦</span> Nudge</a>
+    <nav class="topnav">
+      <a href="/dashboard">Dashboard</a>
+      {% if user.role == 'teacher' %}<a href="/classes/new">New class</a>{% else %}<a href="/join">Join class</a>{% endif %}
+    </nav>
+    <div class="userbox">
+      <span class="badge {{ user.role }}">{{ user.role }}</span>
+      <span class="username">{{ user.name }}</span>
+      <form method="post" action="/logout" class="inline-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn ghost sm" type="submit">Log out</button>
+      </form>
+    </div>
+  </div>
+</header>
+{% endif %}
+{% if flash %}<div class="flash {{ flash.category }}">{{ flash.message }}</div>{% endif %}
+<main class="container">
+{% block content %}{% endblock %}
+</main>
+<footer class="foot">Nudge — a co-pilot that teaches, never tells.</footer>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Ask Nudge{% endblock %}
+{% block bodyattrs %}data-chat-id="{{ chat.id }}"{% endblock %}
+{% block content %}
+<div class="chat-head">
+  <div>
+    <h1>✦ Nudge</h1>
+    <p class="muted">{{ context_label }} · <a href="{{ back_url }}">back</a></p>
+  </div>
+</div>
+<div class="nudge-promise">Nudge helps you <strong>understand</strong> — it won't give you the answer, and that's the point.</div>
+{% include "partials/chat_panel.html" %}
+{% endblock %}

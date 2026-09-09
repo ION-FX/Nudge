@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Nudge{% endblock %}
+{% block content %}
+{% if user.role == 'teacher' %}
+  <div class="page-head">
+    <h1>Your classes</h1>
+    <a class="btn primary" href="/classes/new">+ New class</a>
+  </div>
+  {% if class_stats %}
+  <div class="grid">
+    {% for c, stats in class_stats %}
+    <a class="card class-card" href="/classes/{{ c.id }}">
+      <h3>{{ c.name }}</h3>
+      <p class="muted">{{ c.description|truncate(90) }}</p>
+      <div class="chip-row">
+        <span class="chip">👥 {{ stats.students }} student{{ 's' if stats.students != 1 }}</span>
+        <span class="chip">📄 {{ stats.materials }} material{{ 's' if stats.materials != 1 }}</span>
+        <span class="chip">📝 {{ stats.assignments }} assignment{{ 's' if stats.assignments != 1 }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">You haven't created any classes yet. <a href="/classes/new">Create your first one</a> and share the join code with students.</div>
+  {% endif %}
+{% else %}
+  <div class="page-head">
+    <h1>Your classes</h1>
+    <a class="btn primary" href="/join">+ Join a class</a>
+  </div>
+  {% if classes %}
+  <div class="grid">
+    {% for c in classes %}
+    <a class="card class-card" href="/classes/{{ c.id }}">
+      <h3>{{ c.name }}</h3>
+      <p class="muted">{{ c.description|truncate(90) }}</p>
+      <div class="chip-row"><span class="chip">🧑‍🏫 {{ teacher_names[c.id] }}</span></div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">You're not in any classes yet. Ask your teacher for a <strong>join code</strong> and <a href="/join">enter it here</a>.</div>
+  {% endif %}
+
+  {% if upcoming %}
+  <h2 class="section">Coming up</h2>
+  <div class="card table-card">
+    <table class="list-table">
+      <thead><tr><th>Assignment</th><th>Class</th><th>Due</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for a, klass, sub in upcoming %}
+        <tr>
+          <td><a href="/assignments/{{ a.id }}">{{ a.title }}</a></td>
+          <td class="muted">{{ klass.name }}</td>
+          <td>{% if a.due_at < now %}<span class="muted">{{ a.due_at|duefmt }} (past)</span>{% else %}{{ a.due_at|duefmt }}{% endif %}</td>
+          <td>{% if sub and sub.grade is not none %}<span class="chip ok">Graded</span>{% elif sub %}<span class="chip">Submitted{% if sub.late %} · late{% endif %}</span>{% else %}<span class="chip warn">Not submitted</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}New material — Nudge{% endblock %}
+{% block content %}
+<div class="form-card card">
+  <h1>Upload material</h1>
+  <p class="muted">For <a href="/classes/{{ klass.id }}">{{ klass.name }}</a></p>
+  {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/classes/{{ klass.id }}/materials/new" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Title<input type="text" name="title" required maxlength="200" placeholder="e.g. Week 3 — Loops study guide"></label>
+    <label>Description <span class="hint">(optional)</span><textarea name="description" rows="2"></textarea></label>
+    <label>Upload a file <span class="hint">(pdf, txt, md, csv, json, py, images — max {{ max_mb }} MB)</span>
+      <input type="file" name="file">
+    </label>
+    <div class="or-divider">— or paste text —</div>
+    <label>Pasted text<textarea name="pasted_text" rows="8" placeholder="Paste a reading, notes, a problem set…"></textarea></label>
+    <div class="hint-box">✦ Text-based files and pasted text are readable by <strong>Nudge</strong>, so the co-pilot can tutor students using your actual materials.</div>
+    <button class="btn primary" type="submit">Upload material</button>
+  </form>
+</div>
+{% endblock %}

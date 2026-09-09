@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ status }} — Nudge{% endblock %}
+{% block content %}
+<div class="card error-card">
+  <h1>{{ status }}</h1>
+  <p>{{ detail }}</p>
+  <a class="btn ghost" href="/dashboard">Back to dashboard</a>
+</div>
+{% endblock %}
