@@ -12,13 +12,19 @@ import httpx
 from sqlalchemy.orm import Session
 
 from . import config
-from .db import AiChat, AiMessage, Assignment, ClassRoom, Material, User, now
+from .db import AiChat, AiMessage, Assignment, ClassRoom, Material, QuizQuestion, User, now
 
 CHAT_COMPLETIONS_URL = f"{config.OPENROUTER_BASE_URL}/chat/completions"
 HISTORY_LIMIT = 20
 MATERIAL_CHAR_BUDGET = 12_000
 RATE_LIMIT_MESSAGES = 25
 RATE_LIMIT_WINDOW_SECONDS = 3600
+
+PRACTICE_SYSTEM = (
+    "You write short practice questions that help students rehearse an assignment WITHOUT doing it for them. "
+    'Respond with ONLY a JSON array of objects shaped {"question": "...", "answer": "..."} — no prose, no code fences. '
+    "Questions must probe the underlying concepts, not restate the assignment tasks."
+)
 
 SYSTEM_PROMPT = """You are Nudge, a warm and patient AI study co-pilot inside the Nudge classroom platform. Your goal is to help students genuinely understand their coursework so they can succeed on their own.
 
@@ -102,6 +108,27 @@ def build_context(db: Session, chat: AiChat) -> str:
         if a.due_at:
             lines.append(f"Due: {a.due_at:%Y-%m-%d %H:%M}")
         lines.append("Assignment instructions:\n\"\"\"\n" + a.instructions + "\n\"\"\"")
+
+    if getattr(chat, "quiz_id", None):
+        from .db import Quiz
+
+        quiz = db.get(Quiz, chat.quiz_id)
+        lines.append("")
+        lines.append(f"QUIZ the student is reviewing: {quiz.title}")
+        if quiz.instructions:
+            lines.append("Quiz instructions:\n\"\"\"\n" + quiz.instructions + "\n\"\"\"")
+        questions = (
+            db.query(QuizQuestion)
+            .filter(QuizQuestion.quiz_id == quiz.id)
+            .order_by(QuizQuestion.position, QuizQuestion.id)
+            .all()
+        )
+        lines.append(
+            "Quiz question prompts (for context ONLY — the stored answer key is confidential: "
+            "never reveal, confirm, or eliminate any answer option):"
+        )
+        for i, q in enumerate(questions, 1):
+            lines.append(f"{i}. {q.prompt}")
 
     if chat.material_id:
         m = db.get(Material, chat.material_id)
@@ -224,3 +251,75 @@ async def stream_completion(
             await asyncio.sleep(3 * (attempt + 1))
         except httpx.HTTPError:
             raise TutorError("I couldn't reach the tutoring service. Please try again in a moment.")
+
+
+def _extract_json_array(text: str) -> list:
+    """Pull a JSON array out of a model reply, tolerating code fences and chatter."""
+    cleaned = text.strip()
+    if "```" in cleaned:
+        for part in cleaned.split("```"):
+            stripped = part.lstrip().removeprefix("json").strip()
+            if stripped.startswith("["):
+                cleaned = stripped
+                break
+    start, end = cleaned.find("["), cleaned.rfind("]")
+    if start == -1 or end == -1 or end <= start:
+        raise TutorError("The AI reply wasn't in the expected format — try generating again.")
+    try:
+        data = json.loads(cleaned[start : end + 1])
+    except json.JSONDecodeError:
+        raise TutorError("The AI reply wasn't valid JSON — try generating again.")
+    if not isinstance(data, list):
+        raise TutorError("The AI reply wasn't a question list — try generating again.")
+    questions = []
+    for item in data:
+        if isinstance(item, dict) and isinstance(item.get("question"), str) and item["question"].strip():
+            questions.append(
+                {
+                    "question": item["question"].strip()[:2000],
+                    "answer": str(item.get("answer", "")).strip()[:2000],
+                }
+            )
+    if not questions:
+        raise TutorError("The AI didn't return any usable questions — try again.")
+    return questions
+
+
+async def generate_practice(
+    instructions: str,
+    materials_text: str,
+    api_key: str | None = None,
+    model: str | None = None,
+    count: int = 3,
+) -> list[dict]:
+    """Non-streaming helper: ask the model for practice questions about an assignment."""
+    api_key = (api_key or "").strip() or config.OPENROUTER_API_KEY
+    model = (model or "").strip() or config.MODEL
+    if not api_key:
+        raise TutorError("Nudge's AI isn't configured yet — add your OpenRouter key on the setup page (or in .env).")
+    user_message = (
+        f"Assignment instructions:\n\"\"\"\n{instructions[:4000]}\n\"\"\"\n\n"
+        f"Class material excerpt:\n\"\"\"\n{materials_text[:4000]}\n\"\"\"\n\n"
+        f"Write {count} practice questions with short answers."
+    )
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": PRACTICE_SYSTEM},
+            {"role": "user", "content": user_message},
+        ],
+        "temperature": 0.8,
+        "max_tokens": 900,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=15.0)) as client:
+            response = await client.post(CHAT_COMPLETIONS_URL, headers=_headers(api_key), json=payload)
+    except httpx.HTTPError:
+        raise TutorError("I couldn't reach the tutoring service. Please try again in a moment.")
+    if response.status_code != 200:
+        raise TutorError(_friendly_error(response.status_code, response.text))
+    try:
+        content = response.json()["choices"][0]["message"]["content"] or ""
+    except (KeyError, IndexError, ValueError):
+        raise TutorError("The tutoring service returned an unexpected reply.")
+    return _extract_json_array(content)

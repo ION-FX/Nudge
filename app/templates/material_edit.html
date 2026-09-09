@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Edit material — Nudge{% endblock %}
+{% block content %}
+<div class="form-card card">
+  <h1>Edit material</h1>
+  <p class="muted">In <a href="/classes/{{ klass.id }}">{{ klass.name }}</a></p>
+  {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/materials/{{ material.id }}/edit" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Title<input type="text" name="title" required maxlength="200" value="{{ material.title }}"></label>
+    <label>Description <span class="hint">(optional)</span><textarea name="description" rows="2">{{ material.description }}</textarea></label>
+
+    {% if material.stored_name %}
+    <label>Replace file <span class="hint">(optional — currently {{ material.original_name }})</span><input type="file" name="file"></label>
+    {% else %}
+    <div class="or-divider">— pasted text material —</div>
+    <label>Update text<textarea name="pasted_text" rows="8">{{ material.text_content }}</textarea></label>
+    {% endif %}
+
+    <button class="btn primary" type="submit">Save changes</button>
+  </form>
+  <p class="auth-alt"><a href="/materials/{{ material.id }}">← Back to material</a></p>
+</div>
+{% endblock %}

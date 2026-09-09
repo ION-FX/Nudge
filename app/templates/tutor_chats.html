@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Tutor conversations — Nudge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>✦ Tutor conversations</h1>
+</div>
+<p class="muted">Every chat is scoped to a class, assignment, material or quiz — Nudge keeps its answers about that context (and never gives away answers).</p>
+{% for e in entries %}
+<div class="card notif">
+  <div class="sub-head">
+    <span class="chip">{{ e.label }}</span>
+    <a href="/tutor/{{ e.chat.id }}"><strong>{{ e.title }}</strong></a>
+    <span class="muted">{{ e.messages }} message{{ 's' if e.messages != 1 }}</span>
+    <span class="muted">started {{ e.chat.created_at|duefmt }}</span>
+    <form method="post" action="/tutor/chats/{{ e.chat.id }}/delete" class="inline-form" onsubmit="return confirm('Delete this conversation?')">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn danger sm" type="submit">Delete</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="empty">No conversations yet. Open any class, material, assignment or quiz and hit <strong>✦ Ask Nudge</strong>.</div>
+{% endfor %}
+{% endblock %}

@@ -6,7 +6,7 @@
   <p class="muted">Enter the join code your teacher gave you.</p>
   <form method="post" action="/classes/join">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label>Join code<input type="text" name="code" required maxlength="12" placeholder="e.g. K7QP2M" class="code-input"></label>
+    <label>Join code<input type="text" name="code" required maxlength="12" placeholder="e.g. K7QP2M" class="code-input"{% if prefill %} value="{{ prefill }}"{% endif %}></label>
     <button class="btn primary" type="submit">Join</button>
   </form>
 </div>

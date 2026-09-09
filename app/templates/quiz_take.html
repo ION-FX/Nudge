@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ quiz.title }} — Nudge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ quiz.title }}</h1>
+    <p class="muted">
+      <a href="/classes/{{ klass.id }}">{{ klass.name }}</a>
+      · {{ questions|length }} question{{ 's' if questions|length != 1 }}
+      · {{ total_points }} point{{ 's' if total_points != 1 }}
+      {% if quiz.due_at %} · due {{ quiz.due_at|duefmt }}{% endif %}
+    </p>
+  </div>
+  <div class="head-actions">
+    <a class="btn accent" href="/quizzes/{{ quiz.id }}/tutor">✦ Ask Nudge</a>
+    <a class="btn ghost" href="/classes/{{ klass.id }}">Back to class</a>
+  </div>
+</div>
+
+{% if quiz.instructions %}
+<div class="card"><h3 class="section-sm">Instructions</h3><pre class="instructions">{{ quiz.instructions }}</pre></div>
+{% endif %}
+
+{% if attempt %}
+  <h2 class="section">Your result</h2>
+  <div class="card grade-box big-grade">
+    <strong>You scored {{ attempt.score }} / {{ total_points }}</strong>
+    <p>Submitted {{ attempt.submitted_at|dtfmt }} · one attempt per quiz.</p>
+  </div>
+  {% for q in questions %}
+  {% set answer = answers_by_qid[q.id] %}
+  <div class="card sub-card">
+    <div class="sub-head">
+      <strong>Q{{ loop.index }}</strong>
+      <span class="chip {{ 'ok' if answer and answer.correct else 'warn' }}">{{ '+%d pts' % q.points if answer and answer.correct else '0 pts' }}</span>
+    </div>
+    <pre class="sub-text">{{ q.prompt }}</pre>
+    <p class="hint">Your answer: <strong>{{ answer.response if answer and answer.response else '(blank)' }}</strong></p>
+    {% if q.kind == 'mc' and not (answer and answer.correct) %}
+      <p class="hint">Correct answer: {{ (q.choices | parse_json)[(q.correct | parse_json).index] }}</p>
+    {% elif q.kind == 'truefalse' and not (answer and answer.correct) %}
+      <p class="hint">Correct answer: {{ q.correct | tojson_correct }}</p>
+    {% endif %}
+    {% if not (answer and answer.correct) %}<a class="hint" href="/quizzes/{{ quiz.id }}/tutor">Stuck on this one? Ask Nudge for a hint →</a>{% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+  <h2 class="section">Take the quiz</h2>
+  <form method="post" action="/quizzes/{{ quiz.id }}/take" class="card form-card wide">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for q in questions %}
+    <fieldset class="quiz-q">
+      <legend>Q{{ loop.index }} <span class="chip">{{ q.points }} pt{{ 's' if q.points != 1 }}</span></legend>
+      <p class="quiz-prompt">{{ q.prompt }}</p>
+      {% if q.kind == 'mc' %}
+        {% set options = q.choices | parse_json %}
+        {% for opt in options %}
+        <label class="quiz-opt"><input type="radio" name="q_{{ q.id }}" value="{{ loop.index0 }}" required> {{ opt }}</label>
+        {% endfor %}
+      {% elif q.kind == 'truefalse' %}
+        <label class="quiz-opt"><input type="radio" name="q_{{ q.id }}" value="true" required> True</label>
+        <label class="quiz-opt"><input type="radio" name="q_{{ q.id }}" value="false"> False</label>
+      {% else %}
+        <label class="quiz-opt">Your answer<input type="text" name="q_{{ q.id }}" required></label>
+      {% endif %}
+    </fieldset>
+    {% else %}
+    <div class="empty">This quiz has no questions yet.</div>
+    {% endfor %}
+    {% if questions %}
+    <button class="btn primary" type="submit">Submit quiz</button>
+    <p class="hint">You get one attempt. Nudge can't help during the quiz — that would be cheating 😉</p>
+    {% endif %}
+  </form>
+{% endif %}
+{% endblock %}

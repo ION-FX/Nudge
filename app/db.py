@@ -30,6 +30,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(120))
     role: Mapped[str] = mapped_column(String(20))  # "teacher" | "student"
     password_hash: Mapped[str] = mapped_column(String(255))
+    api_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=now)
 
 
@@ -52,6 +53,7 @@ class ClassRoom(Base):  # "class" is a reserved word
     join_code: Mapped[str] = mapped_column(String(12), unique=True, index=True)
     teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=now)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Enrollment(Base):
@@ -115,6 +117,16 @@ class Setting(Base):
     value: Mapped[str] = mapped_column(Text, default="")
 
 
+class PracticeQuestion(Base):
+    __tablename__ = "practice_questions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    assignment_id: Mapped[int] = mapped_column(ForeignKey("assignments.id"), index=True)
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=now)
+
+
 class AiChat(Base):
     __tablename__ = "ai_chats"
 
@@ -123,6 +135,7 @@ class AiChat(Base):
     class_id: Mapped[int] = mapped_column(ForeignKey("classes.id"))
     assignment_id: Mapped[int | None] = mapped_column(ForeignKey("assignments.id"), nullable=True)
     material_id: Mapped[int | None] = mapped_column(ForeignKey("materials.id"), nullable=True)
+    quiz_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=now)
 
 
@@ -136,5 +149,95 @@ class AiMessage(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=now)
 
 
+class Announcement(Base):
+    __tablename__ = "announcements"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    class_id: Mapped[int] = mapped_column(ForeignKey("classes.id"), index=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    title: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str] = mapped_column(Text, default="")
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=now)
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(40), default="info")  # assignment|grade|quiz|announcement|material
+    message: Mapped[str] = mapped_column(String(400))
+    link: Mapped[str] = mapped_column(String(500), default="")
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=now)
+
+
+class Quiz(Base):
+    __tablename__ = "quizzes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    class_id: Mapped[int] = mapped_column(ForeignKey("classes.id"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    instructions: Mapped[str] = mapped_column(Text, default="")
+    due_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    published: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=now)
+
+
+class QuizQuestion(Base):
+    __tablename__ = "quiz_questions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    quiz_id: Mapped[int] = mapped_column(ForeignKey("quizzes.id"), index=True)
+    position: Mapped[int] = mapped_column(default=0)
+    prompt: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(20), default="mc")  # mc | truefalse | short
+    choices: Mapped[str] = mapped_column(Text, default="[]")  # JSON list of strings (mc only)
+    correct: Mapped[str] = mapped_column(Text, default="{}")  # JSON: {"index":n} | {"value":true} | {"answers":[..]}
+    points: Mapped[int] = mapped_column(default=1)
+
+
+class QuizAttempt(Base):
+    __tablename__ = "quiz_attempts"
+    __table_args__ = (UniqueConstraint("quiz_id", "student_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    quiz_id: Mapped[int] = mapped_column(ForeignKey("quizzes.id"), index=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    score: Mapped[int] = mapped_column(default=0)
+    submitted_at: Mapped[dt.datetime] = mapped_column(DateTime, default=now)
+
+
+class QuizAnswer(Base):
+    __tablename__ = "quiz_answers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    attempt_id: Mapped[int] = mapped_column(ForeignKey("quiz_attempts.id"), index=True)
+    question_id: Mapped[int] = mapped_column(ForeignKey("quiz_questions.id"))
+    response: Mapped[str] = mapped_column(Text, default="")
+    correct: Mapped[bool] = mapped_column(Boolean, default=False)
+    points: Mapped[int] = mapped_column(default=0)
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    _ensure_columns()
+
+
+# Additive migrations: create_all can't add columns to existing tables.
+_NEW_COLUMNS: dict[str, dict[str, str]] = {
+    "classes": {"archived": "BOOLEAN NOT NULL DEFAULT 0"},
+    "ai_chats": {"quiz_id": "INTEGER"},
+    "users": {"api_token": "VARCHAR(64)"},
+}
+
+
+def _ensure_columns() -> None:
+    with engine.begin() as conn:
+        for table, columns in _NEW_COLUMNS.items():
+            rows = conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()
+            existing = {row[1] for row in rows}
+            for name, ddl in columns.items():
+                if name not in existing:
+                    conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")

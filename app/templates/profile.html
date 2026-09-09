@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Profile — Nudge{% endblock %}
+{% block content %}
+<div class="form-card card">
+  <h1>Profile</h1>
+  <p class="muted"><span class="badge {{ user_obj.role }}">{{ user_obj.role }}</span> {{ user_obj.email }}</p>
+
+  <h3 class="section-sm">Display name</h3>
+  <form method="post" action="/profile/name">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Name<input type="text" name="name" required maxlength="120" value="{{ user_obj.name }}"></label>
+    <button class="btn primary sm" type="submit">Save name</button>
+  </form>
+
+  <h3 class="section-sm">API access</h3>
+  {% if user_obj.api_token %}
+  <p class="hint">Your token (keep it secret, it grants full access to your account):</p>
+  <p><code>{{ user_obj.api_token }}</code></p>
+  {% else %}
+  <p class="hint">No API token yet — generate one to use the JSON API (<code>/api/v1/…</code>).</p>
+  {% endif %}
+  <form method="post" action="/profile/api-token">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn ghost sm" type="submit">{{ 'Rotate token' if user_obj.api_token else 'Generate token' }}</button>
+  </form>
+
+  <h3 class="section-sm">Change password</h3>
+  <form method="post" action="/profile/password">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Current password<input type="password" name="current" required></label>
+    <label>New password <span class="hint">(at least 8 characters)</span><input type="password" name="new" required minlength="8"></label>
+    <button class="btn primary sm" type="submit">Change password</button>
+  </form>
+</div>
+{% endblock %}

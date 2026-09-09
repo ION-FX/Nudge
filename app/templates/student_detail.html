@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ student.name }} — {{ klass.name }} — Nudge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ student.name }}</h1>
+    <p class="muted"><a href="/classes/{{ klass.id }}">{{ klass.name }}</a> · {{ student.email }}</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn ghost" href="/classes/{{ klass.id }}/gradebook">📊 Gradebook</a>
+  </div>
+</div>
+
+<h2 class="section">Assignments</h2>
+{% if assignment_rows %}
+<div class="card table-card">
+  <table class="list-table">
+    <thead><tr><th>Assignment</th><th>Submitted</th><th>Grade</th><th>Feedback</th></tr></thead>
+    <tbody>
+    {% for a, sub in assignment_rows %}
+      <tr>
+        <td><a href="/assignments/{{ a.id }}">{{ a.title }}</a></td>
+        <td>{% if sub %}{{ sub.submitted_at|dtfmt }}{% if sub.late %} <span class="chip warn">late</span>{% endif %}{% else %}<span class="chip warn">Not submitted</span>{% endif %}</td>
+        <td>{% if sub and sub.grade is not none %}<span class="chip ok">{{ sub.grade }}{% if a.points %} / {{ a.points }}{% endif %}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="muted">{{ sub.feedback|truncate(50) if sub and sub.feedback else '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">No assignments in this class yet.</div>
+{% endif %}
+
+<h2 class="section">Quizzes</h2>
+{% if quiz_rows %}
+<div class="card table-card">
+  <table class="list-table">
+    <thead><tr><th>Quiz</th><th>Score</th><th>Submitted</th></tr></thead>
+    <tbody>
+    {% for q, attempt, total in quiz_rows %}
+      <tr>
+        <td><a href="/quizzes/{{ q.id }}">{{ q.title }}</a></td>
+        <td>{% if attempt %}<span class="chip ok">{{ attempt.score }} / {{ total }}</span>{% else %}<span class="chip warn">Not taken</span>{% endif %}</td>
+        <td class="muted">{{ attempt.submitted_at|dtfmt if attempt else '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">No published quizzes in this class yet.</div>
+{% endif %}
+{% endblock %}

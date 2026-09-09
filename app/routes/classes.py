@@ -7,7 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import security
-from ..db import Assignment, ClassRoom, Enrollment, Material, Submission, User
+from ..db import Announcement, Assignment, ClassRoom, Enrollment, Material, Quiz, QuizAttempt, QuizQuestion, Submission, User
 from ..deps import ensure_class_member, get_db, page_user
 from ..web import redirect, render
 
@@ -76,6 +76,8 @@ def class_join(
     klass = db.query(ClassRoom).filter(ClassRoom.join_code == code.strip().upper()).first()
     if not klass:
         return redirect("/join", flash="No class found with that join code.", category="err")
+    if klass.archived:
+        return redirect("/join", flash="That class is archived and no longer accepts students.", category="err")
     if db.query(Enrollment).filter_by(class_id=klass.id, student_id=user.id).first():
         return redirect(f"/classes/{klass.id}", flash=f"You're already in {klass.name}.")
     db.add(Enrollment(class_id=klass.id, student_id=user.id))
@@ -84,11 +86,146 @@ def class_join(
 
 
 @router.get("/join")
-def join_page(request: Request, db: Session = Depends(get_db)):
+def join_page(request: Request, code: str = "", db: Session = Depends(get_db)):
     user, _ = page_user(request, db)
     if user.role != "student":
         return redirect("/dashboard")
-    return render(request, db, "join.html")
+    return render(request, db, "join.html", prefill=code.strip().upper()[:12])
+
+
+def _require_class_teacher(db: Session, user, klass: ClassRoom) -> None:
+    if user.role != "teacher" or klass.teacher_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the class teacher can do that.")
+
+
+@router.get("/classes/{cid}/edit")
+def class_edit_page(cid: int, request: Request, db: Session = Depends(get_db)):
+    user, _ = page_user(request, db)
+    klass = db.get(ClassRoom, cid)
+    if not klass:
+        raise HTTPException(status_code=404, detail="Class not found.")
+    _require_class_teacher(db, user, klass)
+    return render(request, db, "class_edit.html", klass=klass, error=None)
+
+
+@router.post("/classes/{cid}/edit")
+def class_edit(
+    cid: int,
+    request: Request,
+    name: str = Form(""),
+    description: str = Form(""),
+    csrf: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user, sess = page_user(request, db)
+    if not security.csrf_ok(csrf, sess):
+        raise HTTPException(status_code=403, detail="Bad CSRF token.")
+    klass = db.get(ClassRoom, cid)
+    if not klass:
+        raise HTTPException(status_code=404, detail="Class not found.")
+    _require_class_teacher(db, user, klass)
+    name = name.strip()
+    if not name or len(name) > 160:
+        return render(request, db, "class_edit.html", klass=klass, error="Please give the class a name.", status_code=400)
+    klass.name = name
+    klass.description = description.strip()[:2000]
+    db.commit()
+    return redirect(f"/classes/{klass.id}", flash="Class updated.")
+
+
+@router.post("/classes/{cid}/archive")
+def class_archive(cid: int, request: Request, csrf: str = Form(""), db: Session = Depends(get_db)):
+    user, sess = page_user(request, db)
+    if not security.csrf_ok(csrf, sess):
+        raise HTTPException(status_code=403, detail="Bad CSRF token.")
+    klass = db.get(ClassRoom, cid)
+    if not klass:
+        raise HTTPException(status_code=404, detail="Class not found.")
+    _require_class_teacher(db, user, klass)
+    klass.archived = not klass.archived
+    db.commit()
+    if klass.archived:
+        return redirect("/dashboard", flash=f"'{klass.name}' moved to archived classes.")
+    return redirect(f"/classes/{klass.id}", flash=f"'{klass.name}' is active again.")
+
+
+@router.post("/classes/{cid}/regen-code")
+def class_regen_code(cid: int, request: Request, csrf: str = Form(""), db: Session = Depends(get_db)):
+    user, sess = page_user(request, db)
+    if not security.csrf_ok(csrf, sess):
+        raise HTTPException(status_code=403, detail="Bad CSRF token.")
+    klass = db.get(ClassRoom, cid)
+    if not klass:
+        raise HTTPException(status_code=404, detail="Class not found.")
+    _require_class_teacher(db, user, klass)
+    klass.join_code = _gen_join_code(db)
+    db.commit()
+    return redirect(f"/classes/{klass.id}", flash=f"New join code: {klass.join_code}")
+
+
+@router.post("/classes/{cid}/remove")
+def class_remove_student(
+    cid: int,
+    request: Request,
+    student_id: int = Form(0),
+    csrf: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user, sess = page_user(request, db)
+    if not security.csrf_ok(csrf, sess):
+        raise HTTPException(status_code=403, detail="Bad CSRF token.")
+    klass = db.get(ClassRoom, cid)
+    if not klass:
+        raise HTTPException(status_code=404, detail="Class not found.")
+    _require_class_teacher(db, user, klass)
+    enrollment = (
+        db.query(Enrollment).filter_by(class_id=klass.id, student_id=student_id).first()
+    )
+    if not enrollment:
+        return redirect(f"/classes/{klass.id}", flash="That student isn't in this class.", category="err")
+    student = db.get(User, student_id)
+    db.delete(enrollment)
+    db.commit()
+    return redirect(f"/classes/{klass.id}", flash=f"Removed {student.name} from the class.")
+
+
+@router.get("/classes/{cid}/students/{sid}")
+def student_detail(cid: int, sid: int, request: Request, db: Session = Depends(get_db)):
+    user, _ = page_user(request, db)
+    klass = db.get(ClassRoom, cid)
+    if not klass:
+        raise HTTPException(status_code=404, detail="Class not found.")
+    _require_class_teacher(db, user, klass)
+    student = db.get(User, sid)
+    if not student or not db.query(Enrollment).filter_by(class_id=klass.id, student_id=sid).first():
+        raise HTTPException(status_code=404, detail="Student not found in this class.")
+
+    assignments = (
+        db.query(Assignment).filter(Assignment.class_id == klass.id).order_by(Assignment.due_at, Assignment.id).all()
+    )
+    assignment_rows = []
+    for a in assignments:
+        sub = db.query(Submission).filter_by(assignment_id=a.id, student_id=sid).first()
+        assignment_rows.append((a, sub))
+
+    quizzes = (
+        db.query(Quiz).filter(Quiz.class_id == klass.id, Quiz.published.is_(True)).order_by(Quiz.id).all()
+    )
+    quiz_rows = []
+    for q in quizzes:
+        attempt = db.query(QuizAttempt).filter_by(quiz_id=q.id, student_id=sid).first()
+        total = sum(qq.points for qq in db.query(QuizQuestion).filter(QuizQuestion.quiz_id == q.id).all())
+        quiz_rows.append((q, attempt, total))
+
+    return render(
+        request,
+        db,
+        "student_detail.html",
+        klass=klass,
+        student=student,
+        assignment_rows=assignment_rows,
+        quiz_rows=quiz_rows,
+    )
 
 
 @router.get("/classes/{cid}")
@@ -139,6 +276,46 @@ def class_detail(cid: int, request: Request, db: Session = Depends(get_db)):
             }
             assignment_rows = [(a, 0, subs.get(a.id)) for a in assignments]
 
+    announcements = (
+        db.query(Announcement)
+        .filter(Announcement.class_id == klass.id)
+        .order_by(Announcement.pinned.desc(), Announcement.created_at.desc())
+        .all()
+    )
+
+    quizzes = db.query(Quiz).filter(Quiz.class_id == klass.id).order_by(Quiz.id.desc()).all()
+
+    events = []
+    for a in assignments:
+        events.append((a.created_at, "📝", f"Posted assignment: {a.title}", f"/assignments/{a.id}"))
+    for m in materials:
+        events.append((m.created_at, "📄", f"Uploaded material: {m.title}", f"/materials/{m.id}"))
+    for q in quizzes:
+        events.append((q.created_at, "🧪", f"Created quiz: {q.title}", f"/quizzes/{q.id}"))
+    for n in announcements:
+        events.append((n.created_at, "📢", f"Announcement: {n.title}", f"/classes/{klass.id}#announcements"))
+    events.sort(key=lambda e: e[0], reverse=True)
+    activity = events[:8]
+    quiz_rows = []
+    if quizzes:
+        quiz_ids = [q.id for q in quizzes]
+        if is_teacher:
+            attempt_counts = dict(
+                db.query(QuizAttempt.quiz_id, func.count(QuizAttempt.id))
+                .filter(QuizAttempt.quiz_id.in_(quiz_ids))
+                .group_by(QuizAttempt.quiz_id)
+                .all()
+            )
+            quiz_rows = [(q, attempt_counts.get(q.id, 0), None) for q in quizzes]
+        else:
+            attempts = {
+                a.quiz_id: a
+                for a in db.query(QuizAttempt)
+                .filter(QuizAttempt.student_id == user.id, QuizAttempt.quiz_id.in_(quiz_ids))
+                .all()
+            }
+            quiz_rows = [(q, 0, attempts.get(q.id)) for q in quizzes]
+
     return render(
         request,
         db,
@@ -148,6 +325,9 @@ def class_detail(cid: int, request: Request, db: Session = Depends(get_db)):
         is_teacher=is_teacher,
         materials=materials,
         assignment_rows=assignment_rows,
+        quiz_rows=quiz_rows,
+        announcements=announcements,
+        activity=activity,
         roster=roster,
         roster_count=roster_count,
     )

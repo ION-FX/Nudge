@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}My grades — Nudge{% endblock %}
+{% block content %}
+<h1>My grades</h1>
+{% for klass, assignment_rows, quiz_rows in sections %}
+<h2 class="section">{{ klass.name }}</h2>
+{% if assignment_rows %}
+<div class="card table-card">
+  <table class="list-table">
+    <thead><tr><th>Assignment</th><th>Due</th><th>Status</th><th>Feedback</th></tr></thead>
+    <tbody>
+    {% for a, sub in assignment_rows %}
+      <tr>
+        <td><a href="/assignments/{{ a.id }}">{{ a.title }}</a></td>
+        <td>{{ a.due_at|duefmt }}</td>
+        <td>{% if sub and sub.grade is not none %}<span class="chip ok">{{ sub.grade }}{% if a.points %} / {{ a.points }}{% endif %}</span>{% elif sub %}<span class="chip">Submitted{% if sub.late %} · late{% endif %}</span>{% else %}<span class="chip warn">Not submitted</span>{% endif %}</td>
+        <td class="muted">{{ sub.feedback|truncate(60) if sub and sub.feedback else '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% if quiz_rows %}
+<div class="card table-card">
+  <table class="list-table">
+    <thead><tr><th>Quiz</th><th>Score</th><th>Submitted</th></tr></thead>
+    <tbody>
+    {% for q, attempt in quiz_rows %}
+      <tr>
+        <td><a href="/quizzes/{{ q.id }}">{{ q.title }}</a></td>
+        <td>{% if attempt %}<span class="chip ok">{{ attempt.score }} point{{ 's' if attempt.score != 1 }}</span>{% else %}<span class="chip warn">Not taken</span>{% endif %}</td>
+        <td class="muted">{{ attempt.submitted_at|dtfmt if attempt else '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% if not assignment_rows and not quiz_rows %}
+<div class="empty">Nothing graded in this class yet.</div>
+{% endif %}
+{% else %}
+<div class="empty">Join a class to start collecting grades.</div>
+{% endfor %}
+{% endblock %}

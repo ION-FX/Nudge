@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Gradebook — {{ klass.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Gradebook</h1>
+    <p class="muted"><a href="/classes/{{ klass.id }}">{{ klass.name }}</a> · {{ rows|length }} students</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn primary" href="/classes/{{ klass.id }}/gradebook.csv">⬇ Export CSV</a>
+    <a class="btn ghost" href="/classes/{{ klass.id }}">Back</a>
+  </div>
+</div>
+
+{% if rows %}
+<div class="card table-card gradebook-wrap">
+  <table class="list-table gradebook">
+    <thead>
+      <tr>
+        <th class="sticky-col">Student</th>
+        {% for a in assignments %}<th title="{{ a.instructions|truncate(120) }}">{{ a.title|truncate(18) }} <span class="muted">/{{ a.points or '?' }}</span></th>{% endfor %}
+        {% for q in quizzes %}<th title="Quiz">{{ q.title|truncate(18) }}</th>{% endfor %}
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td class="sticky-col">{{ row.student.name }}</td>
+        {% for cell in row.cells %}
+          <td>
+            {% if cell.value is not none %}
+              <span class="chip ok">{{ cell.value }}{% if cell.kind == 'quiz' %} / {{ cell.total }}{% endif %}</span>
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
+        {% endfor %}
+        <td><strong>{{ row.total }}</strong> <span class="muted">of {{ row.possible }} graded</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">No students enrolled yet.</div>
+{% endif %}
+{% endblock %}

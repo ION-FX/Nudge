@@ -1,0 +1,14 @@
+[Unit]
+Description=Nudge classroom platform
+After=network.target
+
+[Service]
+User=vm
+WorkingDirectory=/home/vm/aitesting/nudge
+ExecStart=/home/vm/aitesting/nudge/.venv/bin/python run.py
+Restart=on-failure
+Environment=HOST=0.0.0.0
+Environment=PORT=8000
+
+[Install]
+WantedBy=multi-user.target

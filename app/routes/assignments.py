@@ -7,9 +7,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from .. import config, security
-from ..db import Assignment, ClassRoom, Enrollment, Submission, User, now
+from ..db import Assignment, ClassRoom, Enrollment, Material, PracticeQuestion, Submission, User, now
 from ..deps import ensure_class_member, get_db, page_user, parse_due, parse_points
 from ..extract import UPLOAD_EXTENSIONS, ext_of
+from ..notify import notify, notify_class_students
 from ..web import redirect, render
 
 router = APIRouter()
@@ -74,7 +75,78 @@ def assignment_new(
     )
     db.add(assignment)
     db.commit()
+    notify_class_students(
+        db,
+        klass.id,
+        "assignment",
+        f"New assignment in {klass.name}: {title}",
+        link=f"/assignments/{assignment.id}",
+    )
     return redirect(f"/assignments/{assignment.id}", flash=f"Assignment '{title}' posted.")
+
+
+@router.get("/assignments/{aid}/edit")
+def assignment_edit_page(aid: int, request: Request, db: Session = Depends(get_db)):
+    user, _ = page_user(request, db)
+    assignment = _get_assignment_or_404(db, aid)
+    klass = db.get(ClassRoom, assignment.class_id)
+    _require_owner(db, user, klass)
+    return render(request, db, "assignment_edit.html", assignment=assignment, klass=klass, error=None)
+
+
+@router.post("/assignments/{aid}/edit")
+def assignment_edit(
+    aid: int,
+    request: Request,
+    title: str = Form(""),
+    instructions: str = Form(""),
+    due_at: str = Form(""),
+    points: str = Form(""),
+    csrf: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user, sess = page_user(request, db)
+    if not security.csrf_ok(csrf, sess):
+        raise HTTPException(status_code=403, detail="Bad CSRF token.")
+    assignment = _get_assignment_or_404(db, aid)
+    klass = db.get(ClassRoom, assignment.class_id)
+    _require_owner(db, user, klass)
+    title = title.strip()
+    if not title:
+        return render(
+            request, db, "assignment_edit.html", assignment=assignment, klass=klass,
+            error="Please give the assignment a title.", status_code=400,
+        )
+    assignment.title = title[:200]
+    assignment.instructions = instructions.strip()[:20000]
+    assignment.due_at = parse_due(due_at)
+    assignment.points = parse_points(points)
+    db.commit()
+    return redirect(f"/assignments/{assignment.id}", flash="Assignment updated.")
+
+
+@router.post("/assignments/{aid}/delete")
+def assignment_delete(aid: int, request: Request, csrf: str = Form(""), db: Session = Depends(get_db)):
+    user, sess = page_user(request, db)
+    if not security.csrf_ok(csrf, sess):
+        raise HTTPException(status_code=403, detail="Bad CSRF token.")
+    assignment = _get_assignment_or_404(db, aid)
+    klass = db.get(ClassRoom, assignment.class_id)
+    _require_owner(db, user, klass)
+    for sub in db.query(Submission).filter(Submission.assignment_id == assignment.id).all():
+        if sub.stored_name:
+            path = config.UPLOAD_DIR / sub.stored_name
+            if path.exists():
+                path.unlink()
+        db.delete(sub)
+    db.delete(assignment)
+    db.commit()
+    return redirect(f"/classes/{klass.id}", flash=f"Assignment '{assignment.title}' deleted.")
+
+
+def _require_owner(db: Session, user, klass: ClassRoom) -> None:
+    if user.role != "teacher" or klass.teacher_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the class teacher can do that.")
 
 
 @router.get("/assignments/{aid}")
@@ -104,6 +176,12 @@ def assignment_detail(aid: int, request: Request, db: Session = Depends(get_db))
             .first()
         )
 
+    practice = (
+        db.query(PracticeQuestion)
+        .filter(PracticeQuestion.assignment_id == assignment.id)
+        .order_by(PracticeQuestion.id)
+        .all()
+    )
     return render(
         request,
         db,
@@ -114,6 +192,7 @@ def assignment_detail(aid: int, request: Request, db: Session = Depends(get_db))
         submissions=submissions,
         student_count=student_count,
         my_sub=my_sub,
+        practice=practice,
         now=now(),
     )
 
@@ -220,7 +299,17 @@ def submission_grade(
     db.commit()
     if sub.grade is None:
         return redirect(f"/assignments/{assignment.id}", flash="Grade cleared.")
-    return redirect(f"/assignments/{assignment.id}", flash=f"Graded: {sub.grade}" + (f"/{assignment.points}" if assignment.points else ""))
+    notify(
+        db,
+        sub.student_id,
+        "grade",
+        f"You scored {sub.grade}{'/' + str(assignment.points) if assignment.points else ''} on '{assignment.title}'",
+        link=f"/assignments/{assignment.id}",
+    )
+    return redirect(
+        f"/assignments/{assignment.id}",
+        flash=f"Graded: {sub.grade}" + (f"/{assignment.points}" if assignment.points else ""),
+    )
 
 
 @router.get("/submissions/{sid}/file")
@@ -240,3 +329,62 @@ def submission_file(sid: int, request: Request, db: Session = Depends(get_db)):
     if not path.exists():
         raise HTTPException(status_code=404, detail="File is missing on disk.")
     return FileResponse(path, filename=sub.original_name or path.name)
+
+
+@router.post("/assignments/{aid}/practice")
+async def assignment_practice(
+    aid: int,
+    request: Request,
+    csrf: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Teacher: use the AI to generate practice questions for this assignment."""
+    user, sess = page_user(request, db)
+    if not security.csrf_ok(csrf, sess):
+        raise HTTPException(status_code=403, detail="Bad CSRF token.")
+    assignment = _get_assignment_or_404(db, aid)
+    klass = db.get(ClassRoom, assignment.class_id)
+    _require_owner(db, user, klass)
+
+    from .. import ai
+    from ..settings import resolve_api_key, resolve_model
+
+    materials_text = "\n\n".join(
+        m.text_content for m in db.query(Material).filter(Material.class_id == klass.id).all() if m.text_content
+    )
+    try:
+        questions = await ai.generate_practice(
+            assignment.instructions,
+            materials_text,
+            api_key=resolve_api_key(db),
+            model=resolve_model(db),
+        )
+    except ai.TutorError as exc:
+        return redirect(f"/assignments/{assignment.id}", flash=str(exc), category="err")
+
+    # regenerating replaces the previous set
+    db.query(PracticeQuestion).filter(PracticeQuestion.assignment_id == assignment.id).delete()
+    for item in questions:
+        db.add(PracticeQuestion(assignment_id=assignment.id, question=item["question"], answer=item["answer"]))
+    db.commit()
+    notify_class_students(
+        db,
+        klass.id,
+        "assignment",
+        f"Practice questions added for '{assignment.title}'",
+        link=f"/assignments/{assignment.id}",
+    )
+    return redirect(f"/assignments/{assignment.id}", flash=f"Generated {len(questions)} practice questions.")
+
+
+@router.post("/assignments/{aid}/practice/clear")
+def assignment_practice_clear(aid: int, request: Request, csrf: str = Form(""), db: Session = Depends(get_db)):
+    user, sess = page_user(request, db)
+    if not security.csrf_ok(csrf, sess):
+        raise HTTPException(status_code=403, detail="Bad CSRF token.")
+    assignment = _get_assignment_or_404(db, aid)
+    klass = db.get(ClassRoom, assignment.class_id)
+    _require_owner(db, user, klass)
+    db.query(PracticeQuestion).filter(PracticeQuestion.assignment_id == assignment.id).delete()
+    db.commit()
+    return redirect(f"/assignments/{assignment.id}", flash="Practice questions cleared.")

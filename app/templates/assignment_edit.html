@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Edit assignment — Nudge{% endblock %}
+{% block content %}
+<div class="form-card card">
+  <h1>Edit assignment</h1>
+  <p class="muted">For <a href="/classes/{{ klass.id }}">{{ klass.name }}</a></p>
+  {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/assignments/{{ assignment.id }}/edit">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Title<input type="text" name="title" required maxlength="200" value="{{ assignment.title }}"></label>
+    <label>Instructions<textarea name="instructions" rows="8">{{ assignment.instructions }}</textarea></label>
+    <div class="field-row">
+      <label>Due <span class="hint">(optional)</span><input type="datetime-local" name="due_at" value="{{ assignment.due_at.strftime('%Y-%m-%dT%H:%M') if assignment.due_at else '' }}"></label>
+      <label>Points <span class="hint">(optional)</span><input type="number" name="points" min="0" step="1" value="{{ assignment.points if assignment.points is not none else '' }}"></label>
+    </div>
+    <button class="btn primary" type="submit">Save changes</button>
+  </form>
+  <p class="auth-alt"><a href="/assignments/{{ assignment.id }}">← Back to assignment</a></p>
+</div>
+{% endblock %}

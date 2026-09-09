@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ klass.name }} — Nudge{% endblock %}
+{% block content %}
+<div class="form-card card">
+  <h1>Edit class</h1>
+  {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/classes/{{ klass.id }}/edit">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Class name<input type="text" name="name" required maxlength="160" value="{{ klass.name }}"></label>
+    <label>Description <span class="hint">(optional)</span><textarea name="description" rows="3">{{ klass.description }}</textarea></label>
+    <button class="btn primary" type="submit">Save changes</button>
+  </form>
+  <p class="auth-alt"><a href="/classes/{{ klass.id }}">← Back to class</a></p>
+</div>
+{% endblock %}

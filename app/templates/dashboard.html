@@ -23,6 +23,17 @@
   {% else %}
   <div class="empty">You haven't created any classes yet. <a href="/classes/new">Create your first one</a> and share the join code with students.</div>
   {% endif %}
+  {% if archived %}
+  <h2 class="section">Archived</h2>
+  <div class="grid">
+    {% for c in archived %}
+    <a class="card class-card archived-card" href="/classes/{{ c.id }}">
+      <h3>{{ c.name }}</h3>
+      <p class="muted">Archived — read-only. Open to unarchive.</p>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
 {% else %}
   <div class="page-head">
     <h1>Your classes</h1>

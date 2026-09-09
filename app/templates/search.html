@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Search — Nudge{% endblock %}
+{% block content %}
+<h1>Search</h1>
+<form method="get" action="/search" class="searchbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search your classes, materials, assignments…" autofocus>
+  <button class="btn primary" type="submit">Search</button>
+</form>
+
+{% if results is not none %}
+  {% set total = results.classes|length + results.materials|length + results.assignments|length + results.announcements|length %}
+  <p class="muted">{{ total }} result{{ 's' if total != 1 }} for “{{ q }}”</p>
+
+  {% if results.classes %}
+  <h2 class="section">Classes</h2>
+  {% for c in results.classes %}
+  <a class="card class-card" href="/classes/{{ c.id }}"><strong>{{ c.name }}</strong> <span class="muted">{{ c.description|truncate(80) }}</span></a>
+  {% endfor %}
+  {% endif %}
+
+  {% if results.materials %}
+  <h2 class="section">Materials</h2>
+  {% for m, klass in results.materials %}
+  <a class="card class-card" href="/materials/{{ m.id }}">
+    <strong>{{ m.title }}</strong>
+    <span class="muted">in {{ klass.name if klass else 'class' }} · {{ m.description|truncate(60) or m.text_content|truncate(80) }}</span>
+  </a>
+  {% endfor %}
+  {% endif %}
+
+  {% if results.assignments %}
+  <h2 class="section">Assignments</h2>
+  {% for a, klass in results.assignments %}
+  <a class="card class-card" href="/assignments/{{ a.id }}">
+    <strong>{{ a.title }}</strong>
+    <span class="muted">in {{ klass.name if klass else 'class' }} · {{ a.instructions|truncate(80) }}</span>
+  </a>
+  {% endfor %}
+  {% endif %}
+
+  {% if results.announcements %}
+  <h2 class="section">Announcements</h2>
+  {% for n, klass in results.announcements %}
+  <div class="card">
+    <strong>{{ n.title }}</strong>
+    <span class="muted">in {{ klass.name if klass else 'class' }} · {{ n.body|truncate(100) }}</span>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if total == 0 %}
+  <div class="empty">Nothing found. Try a different word?</div>
+  {% endif %}
+{% endif %}
+{% endblock %}

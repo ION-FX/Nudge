@@ -93,19 +93,36 @@ Demo logins (only if you ran `seed.py`):
 
 **Teachers** — create classes (each gets a join code), upload materials
 (`.pdf`, `.txt`, `.md`, `.csv`, `.json`, `.py`, images) or paste text, post
-assignments with instructions/due date/points, view submissions, and grade with
-feedback.
+assignments with instructions/due date/points, build **auto-graded quizzes**
+(MC / true-false / short answer, CSV import), post **announcements**, manage
+the roster, and grade everything from the **gradebook** (matrix view + CSV
+export).
 
-**Students** — join with a code, browse materials, submit answers (text and/or
-file) with late-flagging and resubmission, and see grades + feedback.
+**Students** — join with a code, browse materials, submit assignments (text
+and/or file, late-flagging, resubmission), take quizzes, and see grades +
+feedback in **My grades** and the **Calendar**.
 
-**Nudge, the co-pilot** — a context-aware chat available for any class,
-material, or assignment. It reads the class materials (text extracted from
-uploads) and the assignment instructions, then tutors Socratically. The system
-prompt and context pipeline enforce the one rule that makes Nudge *Nudge*:
-guide, hint, explain — never give away the answer, even if the uploaded
-materials contain answer keys. Streams token-by-token over SSE; per-user rate
-limits protect the free model's shared pool.
+**Nudge, the AI co-pilot** — a context-aware chat available for any class,
+material, assignment, or quiz. It reads the class materials (text extracted
+from uploads) and the assignment instructions, then tutors Socratically. The
+system prompt and context pipeline enforce the one rule that makes Nudge
+*Nudge*: guide, hint, explain — never give away the answer. For quizzes, only
+question prompts reach the model, never the answer key. Streams
+token-by-token over SSE; per-user rate limits and automatic 429 retries
+protect the free model's shared pool. Teachers can also generate **AI practice
+questions** for any assignment.
+
+**Platform** — first-run `/setup` wizard, notification center, global search,
+teacher invite-code gate, scrypt auth + sessions + CSRF, additive in-place
+migrations, JSON API v1 with per-user bearer tokens, management CLI, Docker +
+systemd deployment, dark mode, and a 100+ test pytest suite.
+
+Full documentation lives in [`docs/`](docs/):
+[Features](docs/FEATURES.md) · [Architecture](docs/ARCHITECTURE.md) ·
+[API](docs/API.md) · [Tutoring guardrails](docs/TUTORING.md) ·
+[Deployment](docs/DEPLOYMENT.md) · [Security](docs/SECURITY.md) ·
+[Testing](docs/TESTING.md) · [Classroom guide](docs/CLASSROOM_GUIDE.md) ·
+[Changelog](CHANGELOG.md)
 
 ## GitHub safety
 

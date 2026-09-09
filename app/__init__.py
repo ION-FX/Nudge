@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import httpx
@@ -9,6 +10,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
+from .api import router as api_router
 from .db import SessionLocal, init_db
 from .deps import PageRedirect
 from .routes import ALL_ROUTERS
@@ -20,6 +22,8 @@ log = logging.getLogger("nudge")
 
 def _verify_model() -> None:
     """Best-effort startup check that the configured OpenRouter model exists."""
+    if os.getenv("NUDGE_SKIP_MODEL_CHECK"):
+        return
     try:
         resp = httpx.get(f"{config.OPENROUTER_BASE_URL}/models", timeout=10)
         ids = {m["id"] for m in resp.json().get("data", [])}
@@ -43,12 +47,13 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=config.BASE_DIR / "app" / "static"), name="static")
     for router in ALL_ROUTERS:
         app.include_router(router)
+    app.include_router(api_router)
 
     @app.middleware("http")
     async def _setup_gate(request: Request, call_next):
         """Until an account exists, funnel everything into first-run setup."""
         path = request.url.path
-        if not (path.startswith("/static") or path.startswith("/setup")):
+        if not (path.startswith("/static") or path.startswith("/setup") or path == "/healthz"):
             db = SessionLocal()
             try:
                 if not users_exist(db):

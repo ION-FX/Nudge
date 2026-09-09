@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ quiz.title }} — Nudge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ quiz.title }}</h1>
+    <p class="muted">
+      <a href="/classes/{{ klass.id }}">{{ klass.name }}</a>
+      · {{ questions|length }} question{{ 's' if questions|length != 1 }}
+      · {{ total_points }} point{{ 's' if total_points != 1 }}
+      {% if quiz.due_at %} · due {{ quiz.due_at|dtfmt }}{% endif %}
+      · {% if quiz.published %}<span class="chip ok">published</span>{% else %}<span class="chip warn">draft</span>{% endif %}
+    </p>
+  </div>
+  <div class="head-actions">
+    <form method="post" action="/quizzes/{{ quiz.id }}/publish" class="inline-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn {{ 'ghost' if quiz.published else 'primary' }}" type="submit">{{ 'Unpublish' if quiz.published else 'Publish' }}</button>
+    </form>
+    <a class="btn ghost" href="/classes/{{ klass.id }}">Back to class</a>
+  </div>
+</div>
+
+{% if quiz.instructions %}
+<div class="card"><h3 class="section-sm">Instructions</h3><pre class="instructions">{{ quiz.instructions }}</pre></div>
+{% endif %}
+
+<h2 class="section">Questions</h2>
+{% for q in questions %}
+<div class="card sub-card">
+  <div class="sub-head">
+    <strong>Q{{ loop.index }}</strong>
+    <span class="chip">{{ q.points }} pt{{ 's' if q.points != 1 }}</span>
+    <span class="chip">{{ {'mc': 'multiple choice', 'truefalse': 'true / false', 'short': 'short answer'}[q.kind] }}</span>
+    {% if q.kind == 'truefalse' %}<span class="chip ok">answer: {{ (q.correct | tojson_correct) }}</span>{% endif %}
+  </div>
+  <pre class="sub-text">{{ q.prompt }}</pre>
+  {% if q.kind == 'mc' %}
+    <ol class="choices">{% for c in q.choices | parse_json %}<li>{{ c }}{% if loop.index0 == (q.correct | parse_json).index %} <span class="chip ok">correct</span>{% endif %}</li>{% endfor %}</ol>
+  {% elif q.kind == 'short' %}
+    <p class="hint">Accepted: {{ (q.correct | parse_json).answers | join(', ') }}</p>
+  {% endif %}
+  <form method="post" action="/questions/{{ q.id }}/delete" class="inline-form" onsubmit="return confirm('Remove this question?')">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn danger sm" type="submit">Remove</button>
+  </form>
+</div>
+{% else %}
+<div class="empty">No questions yet — add the first one below.</div>
+{% endfor %}
+
+<h2 class="section">Import questions from CSV</h2>
+<div class="form-card card">
+  <details>
+    <summary class="import-summary">Paste CSV rows — <code>prompt, kind, options, correct, points</code></summary>
+    <form method="post" action="/quizzes/{{ quiz.id }}/import">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label>Rows<textarea name="csv_text" rows="6" placeholder="What is 2+2?, mc, 3|4|5, 1, 1&#10;The sky is green., tf, , false, 1&#10;Name a noble gas., short, , helium||argon, 2"></textarea></label>
+      <p class="hint">kinds: mc | tf | short — mc options are |-separated, correct is the option number; short accepts ||-separated answers.</p>
+      <button class="btn primary sm" type="submit">Import</button>
+    </form>
+  </details>
+</div>
+
+<h2 class="section">Add a question</h2>
+<div class="form-card card">
+  <form method="post" action="/quizzes/{{ quiz.id }}/questions">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Question<textarea name="prompt" rows="2" required placeholder="What are you asking?"></textarea></label>
+    <div class="field-row">
+      <label>Type
+        <select name="kind" id="kind-select">
+          <option value="mc">Multiple choice</option>
+          <option value="truefalse">True / false</option>
+          <option value="short">Short answer</option>
+        </select>
+      </label>
+      <label>Points<input type="number" name="points" min="1" max="100" value="1"></label>
+    </div>
+    <div class="kind-block" data-kind="mc">
+      <label>Options <span class="hint">(one per line)</span><textarea name="choices" rows="4" placeholder="Option A&#10;Option B&#10;Option C"></textarea></label>
+      <label>Correct option number <span class="hint">(1 = first option)</span><input type="number" name="correct_index" min="1" placeholder="1"></label>
+    </div>
+    <div class="kind-block" data-kind="truefalse" hidden>
+      <label>Correct answer
+        <select name="correct_tf"><option value="true">True</option><option value="false">False</option></select>
+      </label>
+    </div>
+    <div class="kind-block" data-kind="short" hidden>
+      <label>Accepted answers <span class="hint">(one per line, case-insensitive)</span><textarea name="correct_short" rows="3" placeholder="photosynthesis&#10;photo synthesis"></textarea></label>
+    </div>
+    <button class="btn primary" type="submit">Add question</button>
+  </form>
+</div>
+
+<h2 class="section">Attempts ({{ attempts|length }}{% if student_count %} of {{ student_count }} students{% endif %})</h2>
+{% if attempts %}
+<div class="card table-card">
+  <table class="list-table">
+    <thead><tr><th>Student</th><th>Score</th><th>Submitted</th></tr></thead>
+    <tbody>
+    {% for attempt, student in attempts %}
+      <tr>
+        <td>{{ student.name }}</td>
+        <td><span class="chip {{ 'ok' if total_points and attempt.score >= total_points * 0.7 else '' }}">{{ attempt.score }} / {{ total_points }}</span></td>
+        <td class="muted">{{ attempt.submitted_at|dtfmt }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">No attempts yet.</div>
+{% endif %}
+<script>
+  // show only the fields relevant to the selected question type
+  var kindSelect = document.getElementById("kind-select");
+  if (kindSelect) {
+    var sync = function () {
+      document.querySelectorAll(".kind-block").forEach(function (el) {
+        el.hidden = el.dataset.kind !== kindSelect.value;
+      });
+    };
+    kindSelect.addEventListener("change", sync);
+    sync();
+  }
+</script>
+{% endblock %}

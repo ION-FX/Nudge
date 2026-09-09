@@ -462,3 +462,124 @@ p.hint { margin-top: 10px; }
   .list-table { min-width: 520px; }
   .page-head { flex-direction: column; }
 }
+
+/* ---------- top bar: search + bell ---------- */
+.topsearch { flex: 1; max-width: 260px; }
+.topsearch input {
+  width: 100%;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.88rem;
+  background: var(--bg);
+}
+.topsearch input:focus { outline: none; border-color: var(--accent); background: #fff; }
+.bell { position: relative; text-decoration: none; font-size: 1.05rem; }
+.bell:hover { text-decoration: none; }
+.bell-count {
+  position: absolute;
+  top: -7px;
+  right: -10px;
+  background: var(--err);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 1px 5px;
+}
+a.username { color: var(--ink); font-weight: 600; }
+a.username:hover { color: var(--accent); text-decoration: none; }
+
+/* ---------- notifications & announcements ---------- */
+.notif { margin-bottom: 10px; padding: 14px 18px; }
+.notif.unread { border-left: 4px solid var(--accent); background: #fbfbff; }
+.notif.pinned-note { border-left: 4px solid var(--accent-2); }
+.notif-msg { font-weight: 600; }
+.chip.kind-assignment { background: var(--accent-soft); color: var(--accent); }
+.chip.kind-grade { background: var(--ok-soft); color: var(--ok); }
+.chip.kind-quiz { background: #f3e8ff; color: #7c3aed; }
+.chip.kind-announcement { background: var(--warn-soft); color: var(--warn); }
+.chip.kind-material { background: var(--bg); color: var(--muted); }
+.new-announce { margin: 12px 0; }
+.new-announce summary { cursor: pointer; font-weight: 700; color: var(--accent); }
+.new-announce form { margin-top: 10px; }
+.archived-card { opacity: 0.65; }
+
+/* ---------- quizzes ---------- */
+.quiz-q { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 14px 0 0; }
+.quiz-q legend { font-weight: 800; padding: 0 8px; }
+.quiz-prompt { margin: 4px 0 10px; white-space: pre-wrap; }
+.quiz-opt { display: flex; align-items: center; gap: 8px; font-weight: 500; margin: 8px 0; }
+.quiz-opt input[type="radio"] { width: auto; margin: 0; }
+.quiz-opt input[type="text"] { width: 100%; max-width: 420px; margin: 6px 0 0; }
+.big-grade { font-size: 1.1rem; margin-bottom: 14px; }
+.big-grade p { margin: 6px 0 0; color: var(--muted); font-size: 0.92rem; }
+ol.choices { margin: 8px 0 12px; padding-left: 22px; }
+ol.choices li { margin: 4px 0; }
+select {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: inherit;
+  background: #fff;
+  color: var(--ink);
+}
+select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(85, 88, 217, 0.15); }
+.wide { max-width: 760px; }
+
+/* ---------- gradebook ---------- */
+.gradebook-wrap { overflow-x: auto; }
+.gradebook { min-width: 640px; }
+.gradebook th, .gradebook td { white-space: nowrap; }
+.sticky-col { position: sticky; left: 0; background: var(--card); font-weight: 700; }
+
+/* ---------- search ---------- */
+.searchbar { display: flex; gap: 10px; margin: 14px 0 8px; max-width: 620px; }
+.searchbar input {
+  flex: 1;
+  padding: 11px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font: inherit;
+  background: #fff;
+}
+.searchbar input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(85, 88, 217, 0.15); }
+.searchbar .btn { margin-top: 0; }
+#searchbar { margin-top: 0; }
+
+/* ---------- dark mode ---------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12141f;
+    --card: #1a1d2c;
+    --ink: #e8eaf2;
+    --muted: #9aa1b5;
+    --line: #2a2e42;
+    --accent: #7b7ef0;
+    --accent-2: #a78bfa;
+    --accent-soft: #262948;
+    --ok: #4ade80;
+    --ok-soft: #12301f;
+    --warn: #fbbf24;
+    --warn-soft: #33270e;
+    --err: #f87171;
+    --err-soft: #3a1a18;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px -18px rgba(0, 0, 0, 0.55);
+  }
+  body { background: var(--bg); }
+  .card.subtle, .chat-log, .notif.unread { background: #1e2131; }
+  .topsearch input { background: var(--bg); color: var(--ink); }
+  .topsearch input:focus { background: var(--card); }
+  label input, label textarea, .chat-input textarea, .searchbar input,
+  .role-pick, .preview, .quiz-q, .msg.assistant .bubble { background: var(--card); color: var(--ink); border-color: var(--line); }
+  .bubble.md pre.code { background: #0b0e1a; }
+  .sticky-col { background: var(--card); }
+  .gradebook-wrap { background: var(--card); }
+  .empty { background: rgba(255, 255, 255, 0.02); }
+  .btn.ghost { background: var(--card); }
+  .bell-count { background: var(--err); }
+}

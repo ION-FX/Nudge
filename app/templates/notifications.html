@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Notifications — Nudge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Notifications</h1>
+  <form method="post" action="/notifications/read-all" class="inline-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn ghost sm" type="submit">Mark all read</button>
+  </form>
+</div>
+{% for n in items %}
+<div class="card notif {{ 'unread' if not n.read }}">
+  <div class="sub-head">
+    <span class="chip kind-{{ n.kind }}">{{ n.kind }}</span>
+    <a href="{{ n.link or '/notifications' }}" class="notif-msg">{{ n.message }}</a>
+    <span class="muted">{{ n.created_at|dtfmt }}</span>
+    {% if not n.read %}
+    <form method="post" action="/notifications/read" class="inline-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="nid" value="{{ n.id }}">
+      <button class="btn ghost sm" type="submit">✓</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="empty">Nothing here yet — announcements, grades and quiz results will show up in this feed.</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,15 @@
+services:
+  nudge:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - nudge-data:/app/data
+      - nudge-uploads:/app/uploads
+    env_file:
+      - .env
+    restart: unless-stopped
+
+volumes:
+  nudge-data:
+  nudge-uploads:

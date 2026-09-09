@@ -3,14 +3,17 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <h1>{{ klass.name }}</h1>
+    <h1>{{ klass.name }} {% if klass.archived %}<span class="chip warn">archived</span>{% endif %}</h1>
     <p class="muted">{% if klass.description %}{{ klass.description }} · {% endif %}Taught by {{ teacher.name }}</p>
   </div>
   <div class="head-actions">
     <a class="btn accent" href="/classes/{{ klass.id }}/tutor">✦ Ask Nudge</a>
     {% if is_teacher %}
+      <a class="btn ghost" href="/classes/{{ klass.id }}/edit">Edit</a>
+      <a class="btn ghost" href="/classes/{{ klass.id }}/gradebook">📊 Gradebook</a>
       <a class="btn ghost" href="/classes/{{ klass.id }}/materials/new">+ Material</a>
-      <a class="btn primary" href="/classes/{{ klass.id }}/assignments/new">+ Assignment</a>
+      <a class="btn ghost" href="/classes/{{ klass.id }}/assignments/new">+ Assignment</a>
+      <a class="btn primary" href="/classes/{{ klass.id }}/quizzes/new">+ Quiz</a>
     {% endif %}
   </div>
 </div>
@@ -19,7 +22,66 @@
 <div class="card subtle join-code-card">
   <span class="muted">Join code — share with your students:</span>
   <code class="code-big">{{ klass.join_code }}</code>
+  <form method="post" action="/classes/{{ klass.id }}/regen-code" class="inline-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn ghost sm" type="submit">↻ Regenerate</button>
+  </form>
+  <form method="post" action="/classes/{{ klass.id }}/archive" class="inline-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn ghost sm" type="submit">{{ 'Unarchive' if klass.archived else 'Archive class' }}</button>
+  </form>
 </div>
+{% endif %}
+
+{% if activity %}
+<h2 class="section">🕒 Recent activity</h2>
+<div class="card table-card">
+  <table class="list-table">
+    <tbody>
+    {% for when, icon, label, link in activity %}
+      <tr><td style="white-space:nowrap">{{ icon }}</td><td><a href="{{ link }}">{{ label }}</a></td><td class="muted">{{ when|duefmt }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if announcements %}
+<h2 class="section" id="announcements">📢 Announcements</h2>
+{% for n in announcements %}
+<div class="card notif {{ 'pinned-note' if n.pinned }}">
+  <div class="sub-head">
+    {% if n.pinned %}<span class="chip accent-chip">📌 pinned</span>{% endif %}
+    <strong>{{ n.title }}</strong>
+    <span class="muted">{{ n.created_at|dtfmt }}</span>
+  </div>
+  {% if n.body %}<pre class="sub-text">{{ n.body }}</pre>{% endif %}
+  {% if is_teacher %}
+  <div class="chip-row">
+    <form method="post" action="/announcements/{{ n.id }}/pin" class="inline-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn ghost sm" type="submit">{{ 'Unpin' if n.pinned else 'Pin' }}</button>
+    </form>
+    <form method="post" action="/announcements/{{ n.id }}/delete" class="inline-form" onsubmit="return confirm('Delete announcement?')">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn danger sm" type="submit">Delete</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% if is_teacher %}
+<details class="new-announce">
+  <summary>📢 Post an announcement</summary>
+  <form method="post" action="/classes/{{ klass.id }}/announcements" class="card form-card">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Title<input type="text" name="title" required maxlength="200" placeholder="e.g. Quiz on Friday!"></label>
+    <label>Message<textarea name="body" rows="3" placeholder="Details…"></textarea></label>
+    <label class="role-opt"><input type="checkbox" name="pinned"> Pin to top</label>
+    <button class="btn primary" type="submit">Post announcement</button>
+  </form>
+</details>
 {% endif %}
 
 <h2 class="section">Assignments</h2>
@@ -30,7 +92,7 @@
     <tbody>
     {% for a, count, sub in assignment_rows %}
       <tr>
-        <td><a href="/assignments/{{ a.id }}">{{ a.title }}</a></td>
+        <td><a href="/assignments/{{ a.id }}">{{ a.title }}</a>{% if is_teacher %} <a class="muted" href="/assignments/{{ a.id }}/edit" title="Edit">✎</a>{% endif %}</td>
         <td>{% if a.due_at and a.due_at < now %}<span class="muted">{{ a.due_at|duefmt }} (past)</span>{% else %}{{ a.due_at|duefmt }}{% endif %}</td>
         <td>{{ a.points if a.points is not none else "—" }}</td>
         {% if is_teacher %}
@@ -45,6 +107,31 @@
 </div>
 {% else %}
 <div class="empty">No assignments yet.</div>
+{% endif %}
+
+<h2 class="section">Quizzes</h2>
+{% if quiz_rows %}
+<div class="card table-card">
+  <table class="list-table">
+    <thead><tr><th>Title</th><th>Status</th><th>Due</th>{% if is_teacher %}<th>Attempts</th>{% else %}<th>Your score</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for q, count, attempt in quiz_rows %}
+      <tr>
+        <td><a href="/quizzes/{{ q.id }}">{{ q.title }}</a></td>
+        <td>{% if q.published %}<span class="chip ok">open</span>{% else %}<span class="chip warn">draft</span>{% endif %}</td>
+        <td>{{ q.due_at|duefmt }}</td>
+        {% if is_teacher %}
+          <td>{{ count }}</td>
+        {% else %}
+          <td>{% if attempt %}<span class="chip ok">{{ attempt.score }} pts</span>{% elif q.published %}<span class="chip warn">Not taken</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">No quizzes yet.{% if is_teacher %} <a href="/classes/{{ klass.id }}/quizzes/new">Create one</a> — it auto-grades itself.{% endif %}</div>
 {% endif %}
 
 <h2 class="section">Materials</h2>
@@ -70,10 +157,21 @@
 {% if roster %}
 <div class="card table-card">
   <table class="list-table">
-    <thead><tr><th>Student</th><th>Email</th><th>Joined</th></tr></thead>
+    <thead><tr><th>Student</th><th>Email</th><th>Joined</th><th></th></tr></thead>
     <tbody>
     {% for enrollment, student in roster %}
-      <tr><td>{{ student.name }}</td><td class="muted">{{ student.email }}</td><td>{{ enrollment.created_at|dtfmt }}</td></tr>
+      <tr>
+        <td><a href="/classes/{{ klass.id }}/students/{{ student.id }}">{{ student.name }}</a></td>
+        <td class="muted">{{ student.email }}</td>
+        <td>{{ enrollment.created_at|dtfmt }}</td>
+        <td>
+          <form method="post" action="/classes/{{ klass.id }}/remove" class="inline-form" onsubmit="return confirm('Remove {{ student.name }} from the class?')">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="student_id" value="{{ student.id }}">
+            <button class="btn danger sm" type="submit">Remove</button>
+          </form>
+        </td>
+      </tr>
     {% endfor %}
     </tbody>
   </table>

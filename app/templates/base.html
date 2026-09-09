@@ -16,10 +16,17 @@
     <nav class="topnav">
       <a href="/dashboard">Dashboard</a>
       {% if user.role == 'teacher' %}<a href="/classes/new">New class</a>{% else %}<a href="/join">Join class</a>{% endif %}
+      <a href="/tutor">Tutor</a>
+      <a href="/calendar">Calendar</a>
+      {% if user.role == 'student' %}<a href="/mygrades">My grades</a>{% endif %}
     </nav>
+    <form class="topsearch" method="get" action="/search">
+      <input type="search" name="q" placeholder="Search…" aria-label="Search">
+    </form>
     <div class="userbox">
+      <a class="bell" href="/notifications" title="Notifications">🔔{% if unread %}<span class="bell-count">{{ unread if unread < 100 else '99+' }}</span>{% endif %}</a>
       <span class="badge {{ user.role }}">{{ user.role }}</span>
-      <span class="username">{{ user.name }}</span>
+      <a class="username" href="/profile" title="Profile">{{ user.name }}</a>
       <form method="post" action="/logout" class="inline-form">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="btn ghost sm" type="submit">Log out</button>
