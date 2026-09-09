@@ -41,13 +41,35 @@ cp .env.example .env
 | `MODEL`              | OpenRouter model id (default `google/gemma-4-31b-it:free`)     |
 | `TEACHER_INVITE_CODE`| Code required to register a **teacher** account                |
 | `MAX_UPLOAD_MB`      | Upload size cap (default 10)                                   |
+| `HOST` / `PORT`      | Bind address/port (default `0.0.0.0:8000`)                     |
 
 Run it:
 
 ```bash
-.venv/bin/python run.py          # http://127.0.0.1:8000
+.venv/bin/python run.py          # binds 0.0.0.0:8000 — reachable on LAN + Tailscale
 .venv/bin/python seed.py         # optional: demo teacher/students/class
 ```
+
+### Accessing from other devices (Tailscale)
+
+By default the server binds `0.0.0.0`, so once the machine is on a Tailscale
+network, any device on the same tailnet can open:
+
+```
+http://<machine's tailnet IP>:8000     # e.g. http://100.72.72.72:8000 — run `tailscale ip -4`
+```
+
+For a proper HTTPS URL with MagicDNS, use Tailscale Serve instead (needs one
+sudo setup, then the server can go back to 127.0.0.1):
+
+```bash
+sudo tailscale set --operator=$USER   # one-time, lets tailscale serve run without sudo
+tailscale serve --bg 8000             # serves https://<machine>.<tailnet>.ts.net
+```
+
+If the site is unreachable from other devices, check the host firewall:
+`sudo ufw allow in on tailscale0 to any port 8000` (or allow 8000 generally).
+
 
 Demo logins after seeding:
 
