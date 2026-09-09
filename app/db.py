@@ -108,6 +108,13 @@ class Submission(Base):
     graded_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class Setting(Base):
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+
+
 class AiChat(Base):
     __tablename__ = "ai_chats"
 

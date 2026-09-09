@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from .. import ai, security
 from ..db import AiChat, AiMessage, Assignment, ClassRoom, Material, SessionLocal, User
 from ..deps import auth_context, ensure_class_member, get_db, page_user
+from ..settings import resolve_api_key, resolve_model
 from ..web import render
 
 router = APIRouter()
@@ -140,12 +141,14 @@ async def post_message(chat_id: int, request: Request, db: Session = Depends(get
         )
 
     messages = ai.build_messages(db, chat, text)
+    api_key = resolve_api_key(db)
+    model = resolve_model(db)
 
     async def gen():
         parts: list[str] = []
         failed = False
         try:
-            async for delta in ai.stream_completion(messages):
+            async for delta in ai.stream_completion(messages, api_key=api_key, model=model):
                 parts.append(delta)
                 yield _sse({"type": "delta", "text": delta})
         except ai.TutorError as exc:

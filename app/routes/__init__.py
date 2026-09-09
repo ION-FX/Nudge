@@ -1,5 +1,5 @@
 from __future__ import annotations
 
-from . import classes, assignments, auth, main, materials, tutor
+from . import assignments, auth, classes, main, materials, setup, tutor
 
-ALL_ROUTERS = [r.router for r in (main, auth, classes, materials, assignments, tutor)]
+ALL_ROUTERS = [r.router for r in (setup, main, auth, classes, materials, assignments, tutor)]

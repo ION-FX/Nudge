@@ -37,9 +37,9 @@ cp .env.example .env
 
 | Key                  | Meaning                                                        |
 | -------------------- | -------------------------------------------------------------- |
-| `OPENROUTER_API_KEY` | Your key from https://openrouter.ai/keys (required for the AI) |
+| `OPENROUTER_API_KEY` | Fallback AI key — can instead be set on the `/setup` page      |
 | `MODEL`              | OpenRouter model id (default `google/gemma-4-31b-it:free`)     |
-| `TEACHER_INVITE_CODE`| Code required to register a **teacher** account                |
+| `TEACHER_INVITE_CODE`| Fallback teacher gate — can instead be set on the `/setup` page|
 | `MAX_UPLOAD_MB`      | Upload size cap (default 10)                                   |
 | `HOST` / `PORT`      | Bind address/port (default `0.0.0.0:8000`)                     |
 
@@ -47,8 +47,21 @@ Run it:
 
 ```bash
 .venv/bin/python run.py          # binds 0.0.0.0:8000 — reachable on LAN + Tailscale
-.venv/bin/python seed.py         # optional: demo teacher/students/class
 ```
+
+### First-run setup
+
+Open the site in a browser. If no account exists yet, every page redirects to
+**`/setup`**, where you:
+
+1. create the **admin teacher** account,
+2. pick the **teacher invite code** future teachers must enter,
+3. optionally paste your **OpenRouter API key** and **model** (stored in the
+   local `data/nudge.db` — gitignored; anything left blank falls back to `.env`).
+
+The setup page locks itself as soon as any user exists. `python seed.py`
+creates demo users, so it also counts as setup — delete `data/nudge.db` to
+start over.
 
 ### Accessing from other devices (Tailscale)
 
@@ -71,7 +84,7 @@ If the site is unreachable from other devices, check the host firewall:
 `sudo ufw allow in on tailscale0 to any port 8000` (or allow 8000 generally).
 
 
-Demo logins after seeding:
+Demo logins (only if you ran `seed.py`):
 
 - Teacher: `teacher@nudge.test` / `nudge-teacher-1`
 - Student: `alex@nudge.test` / `nudge-student-1`

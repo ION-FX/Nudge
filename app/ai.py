@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import collections
 import datetime as dt
 import json
@@ -40,6 +41,20 @@ Format with light markdown: **bold** for key terms, `inline code`, and ``` fence
 
 class TutorError(Exception):
     """User-facing tutor failure (rate limit, upstream error, misconfiguration)."""
+
+
+class _UpstreamError(Exception):
+    """Internal carrier for OpenRouter HTTP/error payloads."""
+
+    def __init__(self, status: int | None, body: str):
+        self.status = status
+        self.body = body
+        super().__init__(body)
+
+
+def _retryable(status: int | None, body: str) -> bool:
+    lowered = body.lower()
+    return status == 429 or "rate" in lowered or "temporarily" in lowered
 
 
 _rate_hits: dict[int, collections.deque] = {}
@@ -128,9 +143,9 @@ def build_messages(db: Session, chat: AiChat, user_text: str) -> list[dict]:
     return messages
 
 
-def _headers() -> dict:
+def _headers(api_key: str) -> dict:
     return {
-        "Authorization": f"Bearer {config.OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "HTTP-Referer": "http://localhost:8000",
         "X-Title": "Nudge",
@@ -153,40 +168,59 @@ def _friendly_error(status: int | None, body: str) -> str:
     return "The tutoring service had a hiccup. Please try again."
 
 
-async def stream_completion(messages: list[dict]) -> AsyncIterator[str]:
-    if not config.OPENROUTER_API_KEY:
-        raise TutorError("Nudge's AI isn't configured yet — add an OpenRouter API key to the .env file.")
+async def stream_completion(
+    messages: list[dict], api_key: str | None = None, model: str | None = None
+) -> AsyncIterator[str]:
+    api_key = (api_key or "").strip() or config.OPENROUTER_API_KEY
+    model = (model or "").strip() or config.MODEL
+    if not api_key:
+        raise TutorError(
+            "Nudge's AI isn't configured yet — add your OpenRouter key on the setup page (or in .env)."
+        )
     payload = {
-        "model": config.MODEL,
+        "model": model,
         "messages": messages,
         "stream": True,
         "temperature": 0.7,
         "max_tokens": 700,
     }
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=15.0)) as client:
-            async with client.stream("POST", CHAT_COMPLETIONS_URL, headers=_headers(), json=payload) as resp:
-                if resp.status_code != 200:
-                    body = (await resp.aread()).decode("utf-8", errors="replace")
-                    raise TutorError(_friendly_error(resp.status_code, body))
-                async for line in resp.aiter_lines():
-                    if not line or line.startswith(":"):
-                        continue
-                    if not line.startswith("data:"):
-                        continue
-                    data = line[5:].strip()
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                    except json.JSONDecodeError:
-                        continue
-                    if chunk.get("error"):
-                        raise TutorError(_friendly_error(None, json.dumps(chunk["error"])))
-                    choices = chunk.get("choices") or []
-                    delta = (choices[0].get("delta") or {}) if choices else {}
-                    text = delta.get("content")
-                    if text:
-                        yield text
-    except httpx.HTTPError:
-        raise TutorError("I couldn't reach the tutoring service. Please try again in a moment.")
+
+    # The free model's shared pool 429s often; retry silently (before any
+    # tokens have been sent to the student) instead of showing an error.
+    for attempt in range(3):
+        produced = False
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=15.0)) as client:
+                async with client.stream(
+                    "POST", CHAT_COMPLETIONS_URL, headers=_headers(api_key), json=payload
+                ) as resp:
+                    if resp.status_code != 200:
+                        body = (await resp.aread()).decode("utf-8", errors="replace")
+                        raise _UpstreamError(resp.status_code, body)
+                    async for line in resp.aiter_lines():
+                        if not line or line.startswith(":"):
+                            continue
+                        if not line.startswith("data:"):
+                            continue
+                        data = line[5:].strip()
+                        if data == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data)
+                        except json.JSONDecodeError:
+                            continue
+                        if chunk.get("error"):
+                            raise _UpstreamError(None, json.dumps(chunk["error"]))
+                        choices = chunk.get("choices") or []
+                        delta = (choices[0].get("delta") or {}) if choices else {}
+                        text = delta.get("content")
+                        if text:
+                            produced = True
+                            yield text
+            return
+        except _UpstreamError as exc:
+            if produced or attempt == 2 or not _retryable(exc.status, exc.body):
+                raise TutorError(_friendly_error(exc.status, exc.body)) from exc
+            await asyncio.sleep(3 * (attempt + 1))
+        except httpx.HTTPError:
+            raise TutorError("I couldn't reach the tutoring service. Please try again in a moment.")

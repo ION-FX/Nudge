@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Set up Nudge{% endblock %}
+{% block content %}
+<div class="form-card card">
+  <h1>✦ Set up Nudge</h1>
+  <p class="muted">First run — create the admin teacher account. This page locks itself once an account exists.</p>
+  {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/setup">
+    <h3 class="section-sm">Admin account</h3>
+    <label>Your name<input type="text" name="name" required maxlength="120" value="{{ form.name or '' }}"></label>
+    <label>Email<input type="email" name="email" required value="{{ form.email or '' }}"></label>
+    <label>Password <span class="hint">(at least 8 characters)</span><input type="password" name="password" required minlength="8"></label>
+
+    <h3 class="section-sm">Co-teachers</h3>
+    <label>Teacher invite code
+      <input type="text" name="invite_code" maxlength="24" value="{{ form.invite_code or invite_suggestion }}">
+    </label>
+    <p class="hint">Anyone registering as a <strong>teacher</strong> must enter this code. Students never need it.</p>
+
+    <h3 class="section-sm">AI co-pilot <span class="hint">(optional — falls back to .env)</span></h3>
+    <label>OpenRouter API key<input type="text" name="api_key" value="{{ form.api_key or '' }}" placeholder="sk-or-v1-…"></label>
+    <label>Model<input type="text" name="model" value="{{ form.model or 'google/gemma-4-31b-it:free' }}"></label>
+    <p class="hint">The key is stored in the local database (<code>data/nudge.db</code>), which is gitignored.</p>
+
+    <button class="btn primary block" type="submit">Finish setup</button>
+  </form>
+</div>
+{% endblock %}

@@ -3,9 +3,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from .. import config, security
+from .. import security
 from ..db import User
 from ..deps import auth_context, get_db
+from ..settings import resolve_invite_code
 from ..web import redirect, render
 
 router = APIRouter()
@@ -45,7 +46,7 @@ def register_submit(
     elif len(password) < 8:
         error = "Password must be at least 8 characters."
     elif role == "teacher" and (
-        not config.TEACHER_INVITE_CODE or teacher_code.strip() != config.TEACHER_INVITE_CODE
+        not resolve_invite_code(db) or teacher_code.strip().upper() != resolve_invite_code(db).upper()
     ):
         error = "That teacher invite code isn't valid. Students can register without a code."
     elif db.query(User).filter(User.email == email).first():

@@ -2,7 +2,6 @@
 
 import datetime as dt
 import uuid
-from pathlib import Path
 
 from app import config
 from app.db import Assignment, ClassRoom, Enrollment, Material, SessionLocal, User, init_db
@@ -138,10 +137,10 @@ def main() -> None:
         )
         db.commit()
 
-        print("Seed data created!")
-        print(f"  Teacher  teacher@nudge.test / nudge-teacher-1")
-        print(f"  Student  alex@nudge.test   / nudge-student-1")
-        print(f"  Student  sam@nudge.test    / nudge-student-1")
+        print("Seed data created! (This also locks the /setup page, since users now exist.)")
+        print("  Teacher  teacher@nudge.test / nudge-teacher-1")
+        print("  Student  alex@nudge.test   / nudge-student-1")
+        print("  Student  sam@nudge.test    / nudge-student-1")
         print(f"  Class 'Intro to Python' join code: {klass.join_code}")
     finally:
         db.close()

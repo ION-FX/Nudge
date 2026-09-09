@@ -9,9 +9,10 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
-from .db import init_db
+from .db import SessionLocal, init_db
 from .deps import PageRedirect
 from .routes import ALL_ROUTERS
+from .settings import users_exist
 from .web import templates
 
 log = logging.getLogger("nudge")
@@ -42,6 +43,19 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=config.BASE_DIR / "app" / "static"), name="static")
     for router in ALL_ROUTERS:
         app.include_router(router)
+
+    @app.middleware("http")
+    async def _setup_gate(request: Request, call_next):
+        """Until an account exists, funnel everything into first-run setup."""
+        path = request.url.path
+        if not (path.startswith("/static") or path.startswith("/setup")):
+            db = SessionLocal()
+            try:
+                if not users_exist(db):
+                    return RedirectResponse("/setup", status_code=303)
+            finally:
+                db.close()
+        return await call_next(request)
 
     @app.exception_handler(PageRedirect)
     async def _page_redirect_handler(request: Request, exc: PageRedirect):
