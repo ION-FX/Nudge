@@ -139,10 +139,11 @@ def test_stream_completion_requires_key(monkeypatch):
 
     monkeypatch.setattr(ai.config, "OPENROUTER_API_KEY", "")
     messages = [{"role": "user", "content": "hi"}]
+    provider = {"kind": "openai_compat", "base_url": "https://x/v1", "api_key": "", "model": "m"}
 
     async def consume():
         collected = []
-        async for _chunk in ai.stream_completion(messages, api_key="", model="m"):
+        async for _chunk in ai.stream_completion(messages, provider=provider):
             collected.append(_chunk)
         return collected
 

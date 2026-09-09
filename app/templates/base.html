@@ -15,7 +15,7 @@
     <a class="brand" href="/dashboard"><span class="brand-mark">✦</span> Nudge</a>
     <nav class="topnav">
       <a href="/dashboard">Dashboard</a>
-      {% if user.role == 'teacher' %}<a href="/classes/new">New class</a>{% else %}<a href="/join">Join class</a>{% endif %}
+      {% if user.role == 'teacher' %}<a href="/classes/new">New class</a><a href="/settings/ai">AI setup</a>{% else %}<a href="/join">Join class</a>{% endif %}
       <a href="/tutor">Tutor</a>
       <a href="/calendar">Calendar</a>
       {% if user.role == 'student' %}<a href="/mygrades">My grades</a>{% endif %}

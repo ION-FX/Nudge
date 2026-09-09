@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}AI providers — Nudge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>⚙️ AI providers</h1>
+    <p class="muted">Pick which AI endpoint and model powers Nudge. The <strong>active</strong> provider is used by every tutor chat and practice generator.</p>
+  </div>
+</div>
+
+{% if providers %}
+<h2 class="section" style="margin-top:0">Configured providers</h2>
+{% for p in providers %}
+<div class="card provider-card">
+  <div class="provider-head">
+    {% if p.active %}<span class="chip ok">✔ ACTIVE</span>{% endif %}
+    <strong>{{ p.name }}</strong>
+    <span class="chip">{{ 'OpenAI-compatible' if p.kind == 'openai_compat' else 'Anthropic' }}</span>
+    {% if not p.api_key %}<span class="chip warn">no key (local only)</span>{% endif %}
+  </div>
+  <div class="chip-row">
+    <span class="provider-url">{{ p.base_url }}</span>
+    <span class="chip provider-model">{{ p.model }}</span>
+  </div>
+  <div class="chip-row">
+    {% if not p.active %}
+    <form method="post" action="/settings/ai/providers/{{ p.id }}/activate" class="inline-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn primary sm" type="submit">Activate</button>
+    </form>
+    {% endif %}
+    <form method="post" action="/settings/ai/providers/{{ p.id }}/test" class="inline-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn ghost sm" type="submit">Test connection</button>
+    </form>
+    <form method="post" action="/settings/ai/providers/{{ p.id }}/delete" class="inline-form" onsubmit="return confirm('Delete this provider?')">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn danger sm" type="submit">Delete</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty">
+  No dashboard providers yet. Nudge falls back to the OpenRouter config in <code>.env</code>.
+  Add a provider below to switch models or endpoints — Ollama, OpenAI, Z.ai, Gemini, Anthropic and more.
+</div>
+{% endif %}
+
+<h2 class="section">Add a provider</h2>
+<div class="form-card card">
+  <form method="post" action="/settings/ai/providers">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Preset <span class="hint">(fills the form — you can still edit)</span></label>
+    <div class="preset-row">
+      {% for preset in presets %}
+      <button type="button" class="preset-chip"
+              data-name="{{ preset.name }}" data-kind="{{ preset.kind }}"
+              data-url="{{ preset.base_url }}" data-model="{{ preset.model }}">{{ preset.name }}</button>
+      {% endfor %}
+    </div>
+    <label>Name<input type="text" name="name" required maxlength="80" placeholder="e.g. Class Ollama server"></label>
+    <label>Type
+      <select name="kind" id="kind-select">
+        <option value="openai_compat">OpenAI-compatible (OpenRouter, Ollama, OpenAI, Z.ai, Gemini…)</option>
+        <option value="anthropic">Anthropic (native messages API)</option>
+      </select>
+    </label>
+    <label>Base URL<input type="text" name="base_url" required maxlength="300" placeholder="https://openrouter.ai/api/v1"></label>
+    <label>API key <span class="hint">(leave empty for local Ollama)</span><input type="text" name="api_key" placeholder="sk-…"></label>
+    <label>Model<input type="text" name="model" required maxlength="160" placeholder="google/gemma-4-31b-it:free"></label>
+    <label class="role-opt"><input type="checkbox" name="make_active" checked> Make active immediately</label>
+    <button class="btn primary" type="submit">Add provider</button>
+  </form>
+</div>
+<script>
+  document.querySelectorAll(".preset-chip").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      var form = chip.closest("form");
+      form.querySelector('[name="name"]').value = chip.dataset.name;
+      form.querySelector('[name="kind"]').value = chip.dataset.kind;
+      form.querySelector('[name="base_url"]').value = chip.dataset.url;
+      form.querySelector('[name="model"]').value = chip.dataset.model;
+    });
+  });
+</script>
+{% endblock %}

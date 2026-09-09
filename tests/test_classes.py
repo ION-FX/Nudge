@@ -25,11 +25,11 @@ def test_create_class_and_join(client, admin, student):
     again = join_class(client, code)
     assert again.status_code == 303
 
-    # teacher sees the student on the roster
+    # teacher sees the student on the people tab
     _login_admin(client)
-    page = client.get(f"/classes/{class_id}")
+    page = client.get(f"/classes/{class_id}?tab=people")
     assert "Stu Dent" in page.text
-    assert "1</strong>" in page.text or "Roster (1)" in page.text
+    assert "People (1)" in page.text
 
 
 def test_join_rejects_unknown_code(client, student):
@@ -109,8 +109,9 @@ def test_remove_student(client, admin, student):
         follow_redirects=False,
     )
     assert response.status_code == 303
-    assert "Removed Stu Dent" in client.get(f"/classes/{class_id}", follow_redirects=True).text or "Removed" in client.get(f"/classes/{class_id}").text
-    assert "Stu Dent" not in client.get(f"/classes/{class_id}").text.split("Roster")[1]
+    client.get(f"/classes/{class_id}?tab=people")  # first fetch consumes the flash
+    page = client.get(f"/classes/{class_id}?tab=people")
+    assert "Stu Dent" not in page.text
 
 
 def test_student_cannot_access_teacher_class_routes(client, admin, student):
@@ -138,8 +139,8 @@ def test_announcements_flow(client, admin, student):
     )
     assert response.status_code == 303
     page = client.get(f"/classes/{class_id}")
-    assert "Quiz Friday" in page.text
-    assert "📌 pinned" in page.text
+    assert "Quiz Friday" in page.text          # stream is the default tab
+    assert "pinned-stream" in page.text
 
     # student got a notification
     _login_student(client, student)

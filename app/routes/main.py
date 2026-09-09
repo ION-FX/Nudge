@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar as cal_mod
 import datetime as dt
 
 from fastapi import APIRouter, Depends, Request
@@ -30,29 +31,76 @@ def _member_class_ids(db: Session, user) -> list[int]:
 
 
 @router.get("/calendar")
-def calendar_view(request: Request, db: Session = Depends(get_db)):
+def calendar_view(request: Request, db: Session = Depends(get_db), year: int = 0, month: int = 0):
     user, _ = page_user(request, db)
     class_ids = _member_class_ids(db, user)
+    today = dt.date.today()
+    year = year or today.year
+    month = month or today.month
+    try:
+        first = dt.date(year, month, 1)
+    except ValueError:
+        first = dt.date(today.year, today.month, 1)
+    year, month = first.year, first.month
+    days_in_month = cal_mod.monthrange(year, month)[1]
+    prev_date = first - dt.timedelta(days=1)
+    next_date = first + dt.timedelta(days=32)
+
+    entries_by_day: dict[int, list] = {}
+    upcoming = []
     cutoff = dt.datetime.now() - dt.timedelta(days=14)
-    items = []
     if class_ids:
         classes = {c.id: c for c in db.query(ClassRoom).filter(ClassRoom.id.in_(class_ids)).all()}
         for a in (
             db.query(Assignment)
-            .filter(Assignment.class_id.in_(class_ids), Assignment.due_at.isnot(None), Assignment.due_at >= cutoff)
+            .filter(Assignment.class_id.in_(class_ids), Assignment.due_at.isnot(None))
             .all()
         ):
-            items.append({"due": a.due_at, "kind": "📝 Assignment", "title": a.title,
-                          "where": classes[a.class_id].name, "link": f"/assignments/{a.id}"})
+            entry = {"due": a.due_at, "kind": "assignment", "icon": "📝", "title": a.title,
+                     "where": classes[a.class_id].name, "link": f"/assignments/{a.id}"}
+            if a.due_at.year == year and a.due_at.month == month:
+                entries_by_day.setdefault(a.due_at.day, []).append(entry)
+            if a.due_at >= cutoff:
+                upcoming.append(entry)
         for q in (
             db.query(Quiz)
-            .filter(Quiz.class_id.in_(class_ids), Quiz.published.is_(True), Quiz.due_at.isnot(None), Quiz.due_at >= cutoff)
+            .filter(Quiz.class_id.in_(class_ids), Quiz.published.is_(True), Quiz.due_at.isnot(None))
             .all()
         ):
-            items.append({"due": q.due_at, "kind": "🧪 Quiz", "title": q.title,
-                          "where": classes[q.class_id].name, "link": f"/quizzes/{q.id}"})
-    items.sort(key=lambda item: item["due"])
-    return render(request, db, "calendar.html", items=items)
+            entry = {"due": q.due_at, "kind": "quiz", "icon": "🧪", "title": q.title,
+                     "where": classes[q.class_id].name, "link": f"/quizzes/{q.id}"}
+            if q.due_at.year == year and q.due_at.month == month:
+                entries_by_day.setdefault(q.due_at.day, []).append(entry)
+            if q.due_at >= cutoff:
+                upcoming.append(entry)
+    upcoming.sort(key=lambda item: item["due"])
+
+    weeks: list[list[int | None]] = []
+    week: list[int | None] = [None] * first.weekday()
+    for day in range(1, days_in_month + 1):
+        week.append(day)
+        if len(week) == 7:
+            weeks.append(week)
+            week = []
+    if week:
+        weeks.append(week + [None] * (7 - len(week)))
+
+    return render(
+        request,
+        db,
+        "calendar.html",
+        weeks=weeks,
+        entries_by_day=entries_by_day,
+        year=year,
+        month=month,
+        upcoming=upcoming,
+        month_name=first.strftime("%B %Y"),
+        prev_year=prev_date.year,
+        prev_month=prev_date.month,
+        next_year=next_date.year,
+        next_month=next_date.month,
+        today=today,
+    )
 
 
 @router.get("/healthz")

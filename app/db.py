@@ -117,6 +117,19 @@ class Setting(Base):
     value: Mapped[str] = mapped_column(Text, default="")
 
 
+class AiProvider(Base):
+    __tablename__ = "ai_providers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(80))
+    kind: Mapped[str] = mapped_column(String(20), default="openai_compat")  # openai_compat | anthropic
+    base_url: Mapped[str] = mapped_column(String(300))
+    api_key: Mapped[str] = mapped_column(Text, default="")
+    model: Mapped[str] = mapped_column(String(160))
+    active: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=now)
+
+
 class PracticeQuestion(Base):
     __tablename__ = "practice_questions"
 

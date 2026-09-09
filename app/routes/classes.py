@@ -229,7 +229,7 @@ def student_detail(cid: int, sid: int, request: Request, db: Session = Depends(g
 
 
 @router.get("/classes/{cid}")
-def class_detail(cid: int, request: Request, db: Session = Depends(get_db)):
+def class_detail(cid: int, request: Request, db: Session = Depends(get_db), tab: str = "stream"):
     user, _ = page_user(request, db)
     klass = db.get(ClassRoom, cid)
     if not klass:
@@ -316,6 +316,33 @@ def class_detail(cid: int, request: Request, db: Session = Depends(get_db)):
             }
             quiz_rows = [(q, 0, attempts.get(q.id)) for q in quizzes]
 
+    stream = []
+    for n in announcements:
+        stream.append({"when": n.created_at, "icon": "📢", "kind_label": "Announcement", "kind": "announcement",
+                       "title": n.title, "body": n.body, "link": "", "pinned": n.pinned,
+                       "meta": f"by {db.get(User, n.author_id).name}", "announcement_id": n.id})
+    for a in assignments:
+        meta_bits = []
+        if a.due_at:
+            meta_bits.append(f"due {a.due_at:%b %d}")
+        if a.points is not None:
+            meta_bits.append(f"{a.points} pts")
+        stream.append({"when": a.created_at, "icon": "📝", "kind_label": "Assignment", "kind": "assignment",
+                       "title": a.title, "body": a.instructions, "link": f"/assignments/{a.id}",
+                       "pinned": False, "meta": " · ".join(meta_bits)})
+    for q in quizzes:
+        stream.append({"when": q.created_at, "icon": "🧪", "kind_label": "Quiz", "kind": "quiz",
+                       "title": q.title, "body": q.instructions, "link": f"/quizzes/{q.id}",
+                       "pinned": False, "meta": "published" if q.published else "draft"})
+    for m in materials:
+        stream.append({"when": m.created_at, "icon": "📄", "kind_label": "Material", "kind": "material",
+                       "title": m.title, "body": m.description, "link": f"/materials/{m.id}",
+                       "pinned": False, "meta": "AI-readable" if m.text_content else ""})
+    stream.sort(key=lambda item: (not item["pinned"], -item["when"].timestamp()))
+
+    if tab not in ("stream", "assignments", "quizzes", "materials", "people"):
+        tab = "stream"
+
     return render(
         request,
         db,
@@ -323,6 +350,8 @@ def class_detail(cid: int, request: Request, db: Session = Depends(get_db)):
         klass=klass,
         teacher=db.get(User, klass.teacher_id),
         is_teacher=is_teacher,
+        tab=tab,
+        stream=stream,
         materials=materials,
         assignment_rows=assignment_rows,
         quiz_rows=quiz_rows,

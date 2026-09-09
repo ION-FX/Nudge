@@ -93,6 +93,6 @@ def test_activity_feed_on_class_page(client, admin):
         follow_redirects=False,
     )
     page = client.get(f"/classes/{class_id}")
-    assert "Recent activity" in page.text
-    assert "Uploaded material: Intro reading" in page.text
-    assert "Posted assignment: First task" in page.text
+    assert "Intro reading" in page.text    # stream shows every post
+    assert "First task" in page.text
+    assert "Stream" in page.text

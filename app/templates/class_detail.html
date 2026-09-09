@@ -11,9 +11,6 @@
     {% if is_teacher %}
       <a class="btn ghost" href="/classes/{{ klass.id }}/edit">Edit</a>
       <a class="btn ghost" href="/classes/{{ klass.id }}/gradebook">📊 Gradebook</a>
-      <a class="btn ghost" href="/classes/{{ klass.id }}/materials/new">+ Material</a>
-      <a class="btn ghost" href="/classes/{{ klass.id }}/assignments/new">+ Assignment</a>
-      <a class="btn primary" href="/classes/{{ klass.id }}/quizzes/new">+ Quiz</a>
     {% endif %}
   </div>
 </div>
@@ -30,61 +27,70 @@
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <button class="btn ghost sm" type="submit">{{ 'Unarchive' if klass.archived else 'Archive class' }}</button>
   </form>
+  <a class="btn ghost sm" href="/classes/{{ klass.id }}/materials/new">+ Material</a>
+  <a class="btn ghost sm" href="/classes/{{ klass.id }}/assignments/new">+ Assignment</a>
+  <a class="btn primary sm" href="/classes/{{ klass.id }}/quizzes/new">+ Quiz</a>
 </div>
 {% endif %}
 
-{% if activity %}
-<h2 class="section">🕒 Recent activity</h2>
-<div class="card table-card">
-  <table class="list-table">
-    <tbody>
-    {% for when, icon, label, link in activity %}
-      <tr><td style="white-space:nowrap">{{ icon }}</td><td><a href="{{ link }}">{{ label }}</a></td><td class="muted">{{ when|duefmt }}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
+<nav class="tabs">
+  <a class="tab {{ 'active' if tab == 'stream' }}" href="/classes/{{ klass.id }}">Stream</a>
+  <a class="tab {{ 'active' if tab == 'assignments' }}" href="/classes/{{ klass.id }}?tab=assignments">Assignments</a>
+  <a class="tab {{ 'active' if tab == 'quizzes' }}" href="/classes/{{ klass.id }}?tab=quizzes">Quizzes</a>
+  <a class="tab {{ 'active' if tab == 'materials' }}" href="/classes/{{ klass.id }}?tab=materials">Materials</a>
+  <a class="tab {{ 'active' if tab == 'people' }}" href="/classes/{{ klass.id }}?tab=people">People{% if is_teacher and roster %} ({{ roster|length }}){% endif %}</a>
+</nav>
 
-{% if announcements %}
-<h2 class="section" id="announcements">📢 Announcements</h2>
-{% for n in announcements %}
-<div class="card notif {{ 'pinned-note' if n.pinned }}">
-  <div class="sub-head">
-    {% if n.pinned %}<span class="chip accent-chip">📌 pinned</span>{% endif %}
-    <strong>{{ n.title }}</strong>
-    <span class="muted">{{ n.created_at|dtfmt }}</span>
-  </div>
-  {% if n.body %}<pre class="sub-text">{{ n.body }}</pre>{% endif %}
+{% if tab == 'stream' %}
+<div class="stream">
   {% if is_teacher %}
-  <div class="chip-row">
-    <form method="post" action="/announcements/{{ n.id }}/pin" class="inline-form">
+  <details class="announce-composer">
+    <summary>📢 Post an announcement to the stream</summary>
+    <form method="post" action="/classes/{{ klass.id }}/announcements" class="card">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <button class="btn ghost sm" type="submit">{{ 'Unpin' if n.pinned else 'Pin' }}</button>
+      <label>Title<input type="text" name="title" required maxlength="200" placeholder="e.g. Quiz on Friday!"></label>
+      <label>Message<textarea name="body" rows="3" placeholder="Details…"></textarea></label>
+      <label class="role-opt"><input type="checkbox" name="pinned"> Pin to top</label>
+      <button class="btn primary" type="submit">Post announcement</button>
     </form>
-    <form method="post" action="/announcements/{{ n.id }}/delete" class="inline-form" onsubmit="return confirm('Delete announcement?')">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-      <button class="btn danger sm" type="submit">Delete</button>
-    </form>
-  </div>
+  </details>
   {% endif %}
+
+  {% for item in stream %}
+  <div class="card stream-card {{ 'pinned-stream' if item.pinned }}">
+    <div class="stream-head">
+      <div class="stream-icon">{{ item.icon }}</div>
+      <div style="flex:1; min-width:0">
+        <div class="stream-meta"><strong>{{ item.kind_label }}</strong>{% if item.meta %} · {{ item.meta }}{% endif %} · {{ item.when|duefmt }}</div>
+        {% if item.link %}
+          <a href="{{ item.link }}"><strong>{{ item.title }}</strong></a>
+        {% else %}
+          <strong>{{ item.title }}</strong>
+        {% endif %}
+      </div>
+    </div>
+    {% if item.body %}<div class="stream-body">{{ item.body|truncate(280) }}</div>{% endif %}
+    {% if is_teacher and item.kind == 'announcement' and item.announcement_id %}
+    <div class="chip-row" style="margin:10px 0 0 52px">
+      <form method="post" action="/announcements/{{ item.announcement_id }}/pin" class="inline-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn ghost sm" type="submit">{{ 'Unpin' if item.pinned else 'Pin' }}</button>
+      </form>
+      <form method="post" action="/announcements/{{ item.announcement_id }}/delete" class="inline-form" onsubmit="return confirm('Delete announcement?')">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn danger sm" type="submit">Delete</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="empty">Nothing in the stream yet.{% if is_teacher %} Post an announcement, upload a material, or create an assignment — everything lands here.{% endif %}</div>
+  {% endfor %}
 </div>
-{% endfor %}
-{% endif %}
-{% if is_teacher %}
-<details class="new-announce">
-  <summary>📢 Post an announcement</summary>
-  <form method="post" action="/classes/{{ klass.id }}/announcements" class="card form-card">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label>Title<input type="text" name="title" required maxlength="200" placeholder="e.g. Quiz on Friday!"></label>
-    <label>Message<textarea name="body" rows="3" placeholder="Details…"></textarea></label>
-    <label class="role-opt"><input type="checkbox" name="pinned"> Pin to top</label>
-    <button class="btn primary" type="submit">Post announcement</button>
-  </form>
-</details>
 {% endif %}
 
-<h2 class="section">Assignments</h2>
+{% if tab == 'assignments' %}
+<h2 class="section" style="margin-top:0">Assignments</h2>
 {% if assignment_rows %}
 <div class="card table-card">
   <table class="list-table">
@@ -106,10 +112,12 @@
   </table>
 </div>
 {% else %}
-<div class="empty">No assignments yet.</div>
+<div class="empty">No assignments yet.{% if is_teacher %} <a href="/classes/{{ klass.id }}/assignments/new">Create one</a>.{% endif %}</div>
+{% endif %}
 {% endif %}
 
-<h2 class="section">Quizzes</h2>
+{% if tab == 'quizzes' %}
+<h2 class="section" style="margin-top:0">Quizzes</h2>
 {% if quiz_rows %}
 <div class="card table-card">
   <table class="list-table">
@@ -133,8 +141,10 @@
 {% else %}
 <div class="empty">No quizzes yet.{% if is_teacher %} <a href="/classes/{{ klass.id }}/quizzes/new">Create one</a> — it auto-grades itself.{% endif %}</div>
 {% endif %}
+{% endif %}
 
-<h2 class="section">Materials</h2>
+{% if tab == 'materials' %}
+<h2 class="section" style="margin-top:0">Materials</h2>
 {% if materials %}
 <div class="grid">
   {% for m in materials %}
@@ -142,42 +152,47 @@
     <h3>{{ m.title }}</h3>
     {% if m.description %}<p class="muted">{{ m.description|truncate(80) }}</p>{% endif %}
     <div class="chip-row">
-      {% if m.text_content %}<span class="chip accent-chip">✦ Nudge can read this</span>{% endif %}
+      {% if m.text_content %}<span class="chip accent-chip">✦ Nudge can read this</span>{% else %}<span class="chip warn">no readable text</span>{% endif %}
       {% if m.original_name %}<span class="chip">{{ m.ext|upper|trim('.') }} · {{ m.size_bytes|filesize }}</span>{% else %}<span class="chip">pasted text</span>{% endif %}
     </div>
   </a>
   {% endfor %}
 </div>
 {% else %}
-<div class="empty">No materials yet.</div>
+<div class="empty">No materials yet.{% if is_teacher %} <a href="/classes/{{ klass.id }}/materials/new">Upload one</a>.{% endif %}</div>
+{% endif %}
 {% endif %}
 
+{% if tab == 'people' %}
+<h2 class="section" style="margin-top:0">People</h2>
 {% if is_teacher %}
-<h2 class="section">Roster ({{ roster|length }})</h2>
-{% if roster %}
-<div class="card table-card">
-  <table class="list-table">
-    <thead><tr><th>Student</th><th>Email</th><th>Joined</th><th></th></tr></thead>
-    <tbody>
-    {% for enrollment, student in roster %}
-      <tr>
-        <td><a href="/classes/{{ klass.id }}/students/{{ student.id }}">{{ student.name }}</a></td>
-        <td class="muted">{{ student.email }}</td>
-        <td>{{ enrollment.created_at|dtfmt }}</td>
-        <td>
-          <form method="post" action="/classes/{{ klass.id }}/remove" class="inline-form" onsubmit="return confirm('Remove {{ student.name }} from the class?')">
-            <input type="hidden" name="csrf" value="{{ csrf }}">
-            <input type="hidden" name="student_id" value="{{ student.id }}">
-            <button class="btn danger sm" type="submit">Remove</button>
-          </form>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
+  {% if roster %}
+  <div class="card table-card">
+    <table class="list-table">
+      <thead><tr><th>Student</th><th>Email</th><th>Joined</th><th></th></tr></thead>
+      <tbody>
+      {% for enrollment, student_user in roster %}
+        <tr>
+          <td><a href="/classes/{{ klass.id }}/students/{{ student_user.id }}">{{ student_user.name }}</a></td>
+          <td class="muted">{{ student_user.email }}</td>
+          <td>{{ enrollment.created_at|dtfmt }}</td>
+          <td>
+            <form method="post" action="/classes/{{ klass.id }}/remove" class="inline-form" onsubmit="return confirm('Remove {{ student_user.name }} from the class?')">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <input type="hidden" name="student_id" value="{{ student_user.id }}">
+              <button class="btn danger sm" type="submit">Remove</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">No students yet — share the join code <code>{{ klass.join_code }}</code> with your class.</div>
+  {% endif %}
 {% else %}
-<div class="empty">No students yet — share the join code <code>{{ klass.join_code }}</code> with your class.</div>
+  <div class="empty">Taught by {{ teacher.name }}{% if klass.description %} — {{ klass.description }}{% endif %}</div>
 {% endif %}
 {% endif %}
 {% endblock %}

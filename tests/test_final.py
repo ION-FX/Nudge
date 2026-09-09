@@ -38,7 +38,7 @@ def test_material_description_shows_on_class_card(client, admin):
         files={"file": ("", b"")},
         follow_redirects=False,
     )
-    assert "Week one reading" in client.get(f"/classes/{class_id}").text
+    assert "Week one reading" in client.get(f"/classes/{class_id}?tab=materials").text
 
 
 def test_search_finds_classes_by_name(client, admin, student):
@@ -102,7 +102,7 @@ def test_material_without_text_not_ai_readable(client, admin):
         files={"file": ("pic.png", io.BytesIO(b"\x89PNG\r\n\x1a\n"), "image/png")},
         follow_redirects=False,
     )
-    page = client.get(f"/classes/{class_id}")
+    page = client.get(f"/classes/{class_id}?tab=materials")
     assert "Nudge can read this" not in page.text
     material_id = __import__("re").search(r"materials/(\d+)", page.text).group(1)
     detail = client.get(f"/materials/{material_id}")

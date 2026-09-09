@@ -347,7 +347,6 @@ async def assignment_practice(
     _require_owner(db, user, klass)
 
     from .. import ai
-    from ..settings import resolve_api_key, resolve_model
 
     materials_text = "\n\n".join(
         m.text_content for m in db.query(Material).filter(Material.class_id == klass.id).all() if m.text_content
@@ -356,8 +355,7 @@ async def assignment_practice(
         questions = await ai.generate_practice(
             assignment.instructions,
             materials_text,
-            api_key=resolve_api_key(db),
-            model=resolve_model(db),
+            provider=ai.resolve_provider(db),
         )
     except ai.TutorError as exc:
         return redirect(f"/assignments/{assignment.id}", flash=str(exc), category="err")

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — multi-provider AI, classroom stream, design pass
+
+### Added
+- **AI provider dashboard** (`Settings → AI setup`): teachers register
+  OpenAI-compatible endpoints (OpenRouter, Ollama local/Cloud, OpenAI, Z.ai,
+  Gemini) or Anthropic natively, with presets, per-provider keys/models,
+  connection testing, and one-click activation.
+- **Class stream** — Google-Classroom-style tabbed class page (Stream /
+  Assignments / Quizzes / Materials / People) with an announcement composer.
+- **Month-grid calendar** with per-day due-date chips and month navigation.
+- Quick-prompt chips and a thinking indicator fix in the tutor chat;
+  assistant avatar; refreshed design system with dark-mode contrast fixes.
+
 ## 0.3.0 — scale-up release
 
 ### Added

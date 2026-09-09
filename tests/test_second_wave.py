@@ -80,7 +80,7 @@ def test_material_text_survives_title_edit(client, admin):
         files={"file": ("", b"")},
         follow_redirects=False,
     )
-    page = client.get(f"/classes/{class_id}")
+    page = client.get(f"/classes/{class_id}?tab=materials")
     material_id = __import__("re").search(r"materials/(\d+)", page.text).group(1)
     client.post(
         f"/materials/{material_id}/edit",
@@ -198,7 +198,7 @@ def test_csrf_enforced_on_material_delete(client, admin):
         files={"file": ("", b"")},
         follow_redirects=False,
     )
-    page = client.get(f"/classes/{class_id}")
+    page = client.get(f"/classes/{class_id}?tab=materials")
     material_id = __import__("re").search(r"materials/(\d+)", page.text).group(1)
     response = client.post(f"/materials/{material_id}/delete", data={"csrf": "wrong"}, follow_redirects=False)
     assert response.status_code == 403

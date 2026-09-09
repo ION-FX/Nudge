@@ -1,17 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Calendar — Nudge{% endblock %}
 {% block content %}
-<h1>📅 Due dates</h1>
-<p class="muted">Assignments and quizzes from the last two weeks and everything coming up.</p>
-{% if items %}
+<div class="page-head">
+  <div>
+    <h1>📅 Due dates</h1>
+    <p class="muted">Assignments and quizzes from the last two weeks and everything coming up.</p>
+  </div>
+</div>
+
+<div class="cal-head">
+  <a class="btn ghost sm" href="/calendar?year={{ prev_year }}&month={{ prev_month }}">← {{ prev_date|datefmt }}</a>
+  <h2 class="cal-title">{{ month_name }}</h2>
+  <a class="btn ghost sm" href="/calendar?year={{ next_year }}&month={{ next_month }}">{{ next_date|datefmt }} →</a>
+</div>
+<div class="cal-grid">
+  <div class="cal-dow">Mon</div><div class="cal-dow">Tue</div><div class="cal-dow">Wed</div><div class="cal-dow">Thu</div><div class="cal-dow">Fri</div><div class="cal-dow">Sat</div><div class="cal-dow">Sun</div>
+  {% for week in weeks %}
+    {% for day in week %}
+      {% if day is none %}
+        <div class="cal-cell pad"></div>
+      {% else %}
+        {% set cell_date = today.replace(year=year, month=month, day=day) %}
+        <div class="cal-cell {{ 'today' if cell_date == today }}">
+          <span class="cal-daynum">{{ day }}</span>
+          {% for item in entries_by_day.get(day, []) %}
+            <a class="cal-item {{ item.kind }}" href="{{ item.link }}" title="{{ item.title }} · {{ item.where }}">{{ item.icon }} {{ item.title }}</a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+</div>
+
+<h2 class="section">Upcoming &amp; recent</h2>
+{% if upcoming %}
 <div class="card table-card">
   <table class="list-table">
     <thead><tr><th>Due</th><th>Kind</th><th>Title</th><th>Class</th></tr></thead>
     <tbody>
-    {% for item in items %}
+    {% for item in upcoming %}
       <tr>
         <td>{% if item.due < now %}<span class="muted">{{ item.due|duefmt }} (past)</span>{% else %}<strong>{{ item.due|duefmt }}</strong>{% endif %}</td>
-        <td>{{ item.kind }}</td>
+        <td>{{ item.icon }} {{ item.kind|capitalize }}</td>
         <td><a href="{{ item.link }}">{{ item.title }}</a></td>
         <td class="muted">{{ item.where }}</td>
       </tr>

@@ -81,8 +81,8 @@ def fake_ai(monkeypatch):
     """Replace the OpenRouter stream with a deterministic mock."""
     calls = []
 
-    async def fake_stream(messages, api_key=None, model=None):
-        calls.append({"messages": messages, "api_key": api_key, "model": model})
+    async def fake_stream(messages, provider=None):
+        calls.append({"messages": messages, "provider": provider})
         for word in ["Let", "us", "think"]:
             yield word
 
@@ -112,10 +112,11 @@ def test_streaming_reply_is_persisted(client, admin, student, fake_ai):
     assert messages[1].content == "Letusthink"
     db.close()
 
-    # the AI call received the mocked context + key resolution
+    # the AI call received the mocked context + resolved provider
     from app import config as app_config
 
-    assert fake_ai[0]["api_key"] == app_config.OPENROUTER_API_KEY
+    assert fake_ai[0]["provider"]["api_key"] == app_config.OPENROUTER_API_KEY
+    assert fake_ai[0]["provider"]["kind"] == "openai_compat"
     system = fake_ai[0]["messages"][0]
     assert system["role"] == "system"
     assert "never reveal" in system["content"].lower()

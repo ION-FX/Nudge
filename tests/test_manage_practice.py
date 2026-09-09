@@ -147,7 +147,8 @@ def fake_practice_http(monkeypatch):
 def test_generate_practice_parses_json_reply(client, admin, fake_practice_http):
     import asyncio
 
-    questions = asyncio.run(ai.generate_practice("Write a FizzBuzz", "range() excludes the end", api_key="k", model="m"))
+    provider = {"kind": "openai_compat", "base_url": "https://x/v1", "api_key": "k", "model": "m"}
+    questions = asyncio.run(ai.generate_practice("Write a FizzBuzz", "range() excludes the end", provider=provider))
     assert questions == [
         {"question": "What is a loop?", "answer": "A way to repeat code"},
         {"question": "Why use range(1, 6)?", "answer": "It yields 1..5"},
@@ -170,10 +171,9 @@ def test_generate_practice_rejects_non_json(client, admin, monkeypatch):
         return BadResponse()
 
     monkeypatch.setattr(ai.httpx.AsyncClient, "post", fake_post)
+    provider = {"kind": "openai_compat", "base_url": "https://x/v1", "api_key": "k", "model": "m"}
     with pytest.raises(ai.TutorError, match="expected format"):
-        __import__("asyncio").run(
-            ai.generate_practice("x", "", api_key="k", model="m")
-        )
+        __import__("asyncio").run(ai.generate_practice("x", "", provider=provider))
 
 
 def test_practice_route_generates_and_clears(client, admin, student, monkeypatch):

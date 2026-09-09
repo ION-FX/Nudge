@@ -26,6 +26,7 @@ def _filesize(n: int) -> str:
 templates.env.filters["filesize"] = _filesize
 templates.env.filters["duefmt"] = lambda d: d.strftime("%b %d, %H:%M") if d else "—"
 templates.env.filters["dtfmt"] = lambda d: d.strftime("%b %d, %Y %H:%M") if d else "—"
+templates.env.filters["datefmt"] = lambda d: d.strftime("%b %Y") if d else "—"
 
 
 def _parse_json(raw: str):

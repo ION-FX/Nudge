@@ -20,6 +20,12 @@
   function addMsg(role) {
     var wrap = document.createElement("div");
     wrap.className = "msg " + role;
+    if (role === "assistant") {
+      var avatar = document.createElement("div");
+      avatar.className = "assistant-avatar";
+      avatar.textContent = "\u2726";
+      wrap.appendChild(avatar);
+    }
     var bubble = document.createElement("div");
     bubble.className = "bubble" + (role === "assistant" ? " md" : "");
     wrap.appendChild(bubble);
@@ -51,6 +57,14 @@
     b.innerHTML = fmt(b.textContent);
   });
 
+  // quick-prompt chips prefill the input
+  Array.prototype.forEach.call(document.querySelectorAll(".quick-chip"), function (chip) {
+    chip.addEventListener("click", function () {
+      input.value = chip.dataset.fill || "";
+      input.focus();
+    });
+  });
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var text = input.value.trim();
@@ -59,12 +73,12 @@
     send.disabled = true;
     addMsg("user").textContent = text;
     input.value = "";
-    typing.hidden = false;
+    typing.style.display = "flex";
     scroll();
 
     var bubble = null;
     var finish = function () {
-      typing.hidden = true;
+      typing.style.display = "none";
       busy = false;
       send.disabled = false;
       input.focus();
@@ -105,13 +119,13 @@
               }
               if (payload.type === "delta") {
                 if (!bubble) {
-                  typing.hidden = true;
+                  typing.style.display = "none";
                   bubble = addMsg("assistant");
                 }
                 bubble.innerHTML = fmt(bubble.textContent + payload.text);
                 scroll();
               } else if (payload.type === "error") {
-                typing.hidden = true;
+                typing.style.display = "none";
                 addMsg("assistant").innerHTML = "<span class='err'>" + esc(payload.text) + "</span>";
               }
             }
@@ -121,7 +135,7 @@
         return pump();
       })
       .catch(function (err) {
-        typing.hidden = true;
+        typing.style.display = "none";
         addMsg("assistant").innerHTML =
           "<span class='err'>" + esc(err.message || "Connection problem — please try again.") + "</span>";
         scroll();

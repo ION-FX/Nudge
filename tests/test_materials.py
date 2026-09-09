@@ -56,7 +56,7 @@ def test_upload_and_ai_readable_badge(client, admin, student):
         follow_redirects=False,
     )
     assert response.status_code == 303
-    page = client.get(f"/classes/{class_id}")
+    page = client.get(f"/classes/{class_id}?tab=materials")
     assert "Reading" in page.text
     assert "Nudge can read this" in page.text
 
@@ -71,7 +71,7 @@ def test_upload_file_and_download(client, admin):
         follow_redirects=False,
     )
     assert response.status_code == 303
-    page = client.get(f"/classes/{class_id}")
+    page = client.get(f"/classes/{class_id}?tab=materials")
     material_id = re.search(r"materials/(\d+)", page.text).group(1)
     download = client.get(f"/materials/{material_id}/file")
     assert download.status_code == 200
@@ -100,7 +100,7 @@ def test_edit_material_title_and_text(client, admin):
         files={"file": ("", b"")},
         follow_redirects=False,
     )
-    page = client.get(f"/classes/{class_id}")
+    page = client.get(f"/classes/{class_id}?tab=materials")
     material_id = re.search(r"materials/(\d+)", page.text).group(1)
     response = client.post(
         f"/materials/{material_id}/edit",
@@ -122,7 +122,7 @@ def test_delete_material(client, admin):
         files={"file": ("", b"")},
         follow_redirects=False,
     )
-    page = client.get(f"/classes/{class_id}")
+    page = client.get(f"/classes/{class_id}?tab=materials")
     material_id = re.search(r"materials/(\d+)", page.text).group(1)
     response = client.post(f"/materials/{material_id}/delete", data={"csrf": token}, follow_redirects=False)
     assert response.status_code == 303

@@ -109,8 +109,14 @@ system prompt and context pipeline enforce the one rule that makes Nudge
 *Nudge*: guide, hint, explain — never give away the answer. For quizzes, only
 question prompts reach the model, never the answer key. Streams
 token-by-token over SSE; per-user rate limits and automatic 429 retries
-protect the free model's shared pool. Teachers can also generate **AI practice
-questions** for any assignment.
+protect shared pools. Teachers can also generate **AI practice questions** for
+any assignment.
+
+**Bring your own AI** — teachers manage providers in **Settings → AI setup**:
+OpenRouter, Ollama (local or Cloud), OpenAI, Z.ai (GLM), Google Gemini,
+Anthropic, or any OpenAI-compatible endpoint. Pick the model, paste the key,
+hit **Test connection**, and activate — the whole platform switches over,
+falling back to `.env` when no provider is configured.
 
 **Platform** — first-run `/setup` wizard, notification center, global search,
 teacher invite-code gate, scrypt auth + sessions + CSRF, additive in-place

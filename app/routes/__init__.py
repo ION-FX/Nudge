@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from . import (
+    ai_admin,
     announcements,
     assignments,
     auth,
@@ -20,6 +21,7 @@ ALL_ROUTERS = [
     r.router
     for r in (
         setup,
+        ai_admin,
         main,
         auth,
         classes,
